@@ -1,0 +1,19 @@
+function displayTrajectoryX_intermediate(iter, M, opti, X, U, problem)
+    %if mod(iter, 50) ~= 0
+    %    return
+    %end
+    for i = 1:length(X)
+        X{i} = opti.debug.value(X{i});
+    end
+    for i = 1:length(U)
+        U{i} = opti.debug.value(U{i});
+    end
+
+    curr_res = struct('X', {X}, 'U', {U});
+    [tc, t] = add_times_to_result(X, M, problem);
+    curr_res.tc = tc; curr_res.t = t; curr_res.tf = t(end);
+    
+    displayTrajectoryX(curr_res, M, problem, method);
+    displayTrajectoryU(curr_res, M, problem, method);
+
+end
