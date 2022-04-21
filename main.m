@@ -7,11 +7,11 @@ problem = setup_problem(problem_switch);
 
 %% specify method parameters
 method.N = 30;
-method.maxIter = 1;
+method.maxIter = 2;
 method.Nmin = 5;
 method.Nstep = 5;
 method.Nmax = 20;
-method.minUDegree = 2;
+method.minUDegree = 0; %0: piecewise constant - 1: piecewise linear - 2: polynomial (control value for every collocation point
 method.slack_performance_treshold = 1.0e-2;%1.0e-2;
 method.slack_path_treshold = 1.0e-10;%1.0e-2;
 method.err_treshold = 1.0e-8;
@@ -49,7 +49,7 @@ if method.load_reference
         M_previous.sc = {};
         res = struct(); res.X = {}; res.U = {}; res.Yx = {}; res.Yu = {}; res.tc = {}; res.t = [];
         for k = problem.N_first:problem.N_end-1
-            res.X{k+1-problem.N_first}  = res_ref.X{k} + 1.0e-1.*rand(size(res_ref.X{k}));
+            res.X{k+1-problem.N_first}  = res_ref.X{k};% + 1.0e-1.*rand(size(res_ref.X{k}));
             res.U{k+1-problem.N_first}  = res_ref.U{k};
             M_previous.sc{k+1-problem.N_first} = M_ref.sc{k};
         end

@@ -1,16 +1,26 @@
 function results = solve_ocp(M, problem, M_previous, res_previous)
     opti = casadi.Opti();
     
+    %temp = casadi.MX.sym('temp', 1,1);
+    
     [X, U, Yx, Yu] = create_opti_variables(opti, problem, M);
     opti = add_initial_final_constraints(opti, problem, X);
     opti = add_path_constraints(opti, problem, M, X, U, Yx, Yu);
     opti = add_coll_constraints(opti, problem, M, X, U);
     opti = add_objective(opti, problem, M, X);
     
+    %[X, U] = create_opti_variables(opti, problem, M);
+    %opti = add_initial_final_constraints(opti, problem, X);
+    %opti = add_path_constraints(opti, problem, M, X, U);
+    %opti = add_coll_constraints(opti, problem, M, X, U);
+    %opti = add_objective(opti, problem, M, X);
+    
     if isempty(res_previous.X{1})
-        opti = add_initial_initial_guess(opti, M, X, U, Yx, Yu, problem);
+        %opti = add_initial_initial_guess(opti, M, X, U, Yx, Yu, problem);
+        opti = add_initial_initial_guess(opti, M, X, U, problem);
     else
-        opti = add_initial_guess(opti, res_previous, M_previous, M, X, U, Yx, Yu, problem);
+        %opti = add_initial_guess(opti, res_previous, M_previous, M, X, U, Yx, Yu, problem);
+        opti = add_initial_guess(opti, res_previous, M_previous, M, X, U, problem);
     end
     
     % solve OCP   
@@ -19,7 +29,7 @@ function results = solve_ocp(M, problem, M_previous, res_previous)
     %options = struct('max_iter', 6000);
     %options = struct('tol', 1.0e-15);
     opti.solver('ipopt', struct('expand', true), options);
-    opti.callback(@(i) displayTrajectoryX_intermediate(i, M, opti, X, U, Yx, Yu, problem));
+    %opti.callback(@(i) displayTrajectoryX_intermediate(i, M, opti, X, U, Yx, Yu, problem));
     sol = opti.solve();
     %spy(sol.value(jacobian(opti.f, opti.x)));
     
@@ -32,20 +42,24 @@ function [X, U, Yx, Yu] = create_opti_variables(opti, problem, M)
     Yx = {};
     for i = 1:Nb_inter
         X{i} = opti.variable(problem.nx, M.Nk(i));
-        Yx{i} = opti.variable(problem.nx*2, M.Nk(i));
+        %Yx{i} = opti.variable(problem.nx*2, M.Nk(i));
+        Yx{i} = casadi.MX.zeros(problem.nx*2, M.Nk(i));
     end
     X{Nb_inter+1} = opti.variable(problem.nx, 1);
-    Yx{Nb_inter+1} = opti.variable(problem.nx*2, 1);
+    %Yx{Nb_inter+1} = opti.variable(problem.nx*2, 1);
+    Yx{Nb_inter+1} = casadi.MX.zeros(problem.nx*2, 1);
     
     U = {};
     Yu = {};
     for i = 1:Nb_inter
         if M.Nu(i) == 0 || M.Nu(i) == 1
             U{i} = opti.variable(problem.nu, 1);
-            Yu{i} = opti.variable(problem.nu*2, 1);
+            %Yu{i} = opti.variable(problem.nu*2, 1);
+            Yu{i} = casadi.MX.zeros(problem.nu*2, 1);
         else
             U{i} = opti.variable(problem.nu, M.Nk(i));
-            Yu{i} = opti.variable(problem.nu*2, M.Nk(i));
+            %Yu{i} = opti.variable(problem.nu*2, M.Nk(i));
+            Yu{i} = casadi.MX.zeros(problem.nu*2, M.Nk(i));
         end
     end
     if M.Nu(end) ~= 0
@@ -70,7 +84,36 @@ function opti = add_initial_final_constraints(opti, problem, X)
 end
 function opti = add_path_constraints(opti, problem, M, X, U, Yx, Yu)
     switch problem.problem_switch
-        case {0, 1, 2, 3, 4, 5, 6}            
+        case {0, 1, 2, 3, 4, 5, 6}
+            u = [U{:}];
+            opti.subject_to(problem.min_accel.*problem.roll_off(u(2,:)) <= u(1,:)<= problem.max_accel.*problem.roll_off(u(2,:)));
+            opti.subject_to(-pi/4 <= u(2,:) <= pi/4);
+            
+            for k = 1:length(U)
+                Yu{k}(1,:) =  U{k}(1,:) - problem.min_accel.*problem.roll_off(U{k}(2,:));
+                Yu{k}(2,:) = problem.max_accel.*problem.roll_off(U{k}(2,:)) - U{k}(1,:);
+                Yu{k}(3,:) = U{k}(2,:) - -pi/4;
+                Yu{k}(4,:) = pi/4 - U{k}(2,:);
+            end
+            
+            x = [X{:}]; x1 = x(1,:); x2 = x(2,:); x3 = x(3,:);
+            opti.subject_to(-problem.b <= x1 <= problem.b);
+            opti.subject_to(-pi/2 <= x2 <= pi/2);
+            opti.subject_to(0 <= x3);
+            for i = 1:length(X)-1
+                if M.Nu(i) ~= 1
+                    uvals = U{i}(2,:);
+                else
+                    uvals = U{i}(2,:) + (M.sc{i}(1:end-1)-M.s(i))./(M.s(i+1)-M.s(i)).*U{i+1}(2,1);
+                end
+                opti.subject_to(X{i}(3,:) <= problem.max_v.*problem.roll_off(uvals));
+                
+                Yx{i}(1,:) = problem.b - X{i}(1,:); Yx{i}(2,:) = X{i}(1,:) - -problem.b;
+                Yx{i}(3,:) = pi/2 - X{i}(2,:); Yx{i}(4,:) = X{i}(2,:) - -pi/2;
+                Yx{i}(5,:) = X{i}(3,:); Yx{i}(6,:) = problem.max_v.*problem.roll_off(uvals) - X{i}(3,:);
+            end
+            
+            %{
             u = [U{:}];
             yu = [Yu{:}];
             opti.subject_to(yu(1,:) == u(1,:) - problem.min_accel.*problem.roll_off(u(2,:))); %opti.subject_to(min_accel.*roll_off(u(2,:))<=u(1,:));
@@ -105,6 +148,7 @@ function opti = add_path_constraints(opti, problem, M, X, U, Yx, Yu)
             opti.subject_to(yx(4,:) >= 0);
             opti.subject_to(yx(5,:) >= 0);
             opti.subject_to(yx(6,:) >= 0);
+            %}
             
         otherwise
             u = [U{:}];            
@@ -161,7 +205,8 @@ function opti = add_objective(opti, problem, M, X)
             opti.minimize(int_approx);
     end
 end
-function opti = add_initial_initial_guess(opti, M, X, U, Yx, Yu, problem)
+function opti = add_initial_initial_guess(opti, M, X, U, problem)
+%function opti = add_initial_initial_guess(opti, M, X, U, Yx, Yu, problem)
     switch problem.problem_switch
         case {0, 1, 2, 3, 4, 5, 6}
             initial_velocity = 1;
@@ -170,28 +215,28 @@ function opti = add_initial_initial_guess(opti, M, X, U, Yx, Yu, problem)
             opti.set_initial(x(2,:), 0);
             opti.set_initial(x(3,:), initial_velocity);
             
-            yx = [Yx{:}];
-            opti.set_initial(yx(1:2,:), problem.b);
-            opti.set_initial(yx(3:4,:), pi/2);
-            opti.set_initial(yx(5,:), initial_velocity);
+            %yx = [Yx{:}];
+            %opti.set_initial(yx(1:2,:), problem.b);
+            %opti.set_initial(yx(3:4,:), pi/2);
+            %opti.set_initial(yx(5,:), initial_velocity);
 
             for k = 1:length(M.s)-1
                 uvals = atan(1./problem.myTrack.evaluate_radius_curvature(M.sc{k}(1:end-1)));
-                opti.set_initial(Yx{k}(6,:), problem.max_v.*problem.roll_off(uvals) - initial_velocity);
+                %opti.set_initial(Yx{k}(6,:), problem.max_v.*problem.roll_off(uvals) - initial_velocity);
                 
                 opti.set_initial(U{k}(1,:), 0);
                 for j = 1:size(U{k},2)
                     scurr = M.sc{k}(j);
                     uval = atan(1/problem.myTrack.evaluate_radius_curvature(scurr));
                     opti.set_initial(U{k}(2,j), uval);
-                    opti.set_initial(Yu{k}(1,j), 0 - problem.min_accel.*problem.roll_off(uval));
-                    opti.set_initial(Yu{k}(2,j), problem.max_accel.*problem.roll_off(uval) - 0);
-                    opti.set_initial(Yu{k}(3,j), uval - -pi/4);
-                    opti.set_initial(Yu{k}(4,j), pi/4 - uval);
+                    %opti.set_initial(Yu{k}(1,j), 0 - problem.min_accel.*problem.roll_off(uval));
+                    %opti.set_initial(Yu{k}(2,j), problem.max_accel.*problem.roll_off(uval) - 0);
+                    %opti.set_initial(Yu{k}(3,j), uval - -pi/4);
+                    %opti.set_initial(Yu{k}(4,j), pi/4 - uval);
                 end
             end
             
-        case 6
+        case 7
             x = [X{:}];
             opti.set_initial(x(1,:), 0);
             opti.set_initial(x(2,:), 0);
@@ -202,7 +247,7 @@ function opti = add_initial_initial_guess(opti, M, X, U, Yx, Yu, problem)
                     opti.set_initial(U{k}(1,j), atan(1/problem.myTrack.evaluate_radius_curvature(scurr)));
                 end
             end
-        case 7
+        case 8
             x = [X{:}];
             opti.set_initial(x(1,:), 0);
             opti.set_initial(x(2,:), 0);
@@ -216,7 +261,7 @@ function opti = add_initial_initial_guess(opti, M, X, U, Yx, Yu, problem)
             end
     end 
 end
-function opti = add_initial_guess(opti, res_previous, M_previous, M, X, U, Yx, Yu, problem)
+function opti = add_initial_guess(opti, res_previous, M_previous, M, X, U, problem)
     Xinit = new_mesh_evaluateX(res_previous.X, M_previous, M);
     for i = 1:length(Xinit)
         opti.set_initial(X{i}, Xinit{i});
@@ -227,13 +272,13 @@ function opti = add_initial_guess(opti, res_previous, M_previous, M, X, U, Yx, Y
         opti.set_initial(U{i}, Uinit{i});
     end
     
-    [Yxinit, Yuinit] = initialize_slack_variables(M, Xinit, Uinit, problem);
-    for k = 1:length(Yx)
-        opti.set_initial(Yx{k}, Yxinit{k});
-    end
-    for k = 1:length(Yu)
-        opti.set_initial(Yu{k}, Yuinit{k});
-    end
+    %[Yxinit, Yuinit] = initialize_slack_variables(M, Xinit, Uinit, problem);
+    %for k = 1:length(Yx)
+    %    opti.set_initial(Yx{k}, Yxinit{k});
+    %end
+    %for k = 1:length(Yu)
+    %    opti.set_initial(Yu{k}, Yuinit{k});
+    %end
     
     %displayTrajectoryX(res_previous, M_previous, problem, false, "");
     %[tc, t] = add_times_to_result(Xinit, M, problem);
