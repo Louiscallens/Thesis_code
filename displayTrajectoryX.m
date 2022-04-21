@@ -2,7 +2,11 @@ function displayTrajectoryX(res, M, problem, save_plots, plot_name)
     svalues = [];
     tvalues = [];
     for k = 1:length(res.tc)
-        tvalues = [tvalues, res.tc{k}(1:end-1)];
+        %if k == 1
+        %   tvalues = [tvalues, linspace(res.tc{k}(1), res.tc{k+1}(1), 100)];
+        %else
+           tvalues = [tvalues, res.tc{k}(1:end-1)]; 
+        %end
         svalues = [svalues, M.sc{k}(1:end-1)];
     end
     tvalues = [tvalues, res.t(end)];
@@ -11,11 +15,17 @@ function displayTrajectoryX(res, M, problem, save_plots, plot_name)
     xvalues = [];
     xvaluesfirst = [];
     for k = 1:length(res.X)
-        xvalues = [xvalues, res.X{k}];
+        %if k == 1
+        %   xvalues = [xvalues, LagrangePolynomialEval(res.tc{k}, [res.X{k}, res.X{k+1}(:,1)], linspace(res.tc{k}(1), res.tc{k+1}(1), 100))];
+        %else
+           xvalues = [xvalues, res.X{k}]; 
+        %end
         xvaluesfirst = [xvaluesfirst, res.X{k}(:,1)];
     end
     
-    figure(1); clf;
+    [tvalues_u, uvalues, tVars, uVars] = get_uvalues(res, M);
+    
+    f = figure(1); clf; f.Position = [25.0000  464.2000  500.0000  300.0000];
     for i = 1:problem.nx
         subplot(problem.nx, 1, i);
         plot(tvalues, xvalues(i,:), '.-', 'linewidth', 1); hold on;
@@ -23,6 +33,14 @@ function displayTrajectoryX(res, M, problem, save_plots, plot_name)
         xline(res.t, ':', 'color', [0.5, 0.5, 0.5]);
         xlabel('$t$', 'interpreter', 'latex');
         ylabel("$x_"+num2str(i)+"$", 'interpreter', 'latex');
+        xlim([res.t(1), res.t(end)]);
+        if i == 1
+            plot(tvalues,  problem.b.*ones(size(tvalues)), '-r', 'linewidth', 1);
+            plot(tvalues, -problem.b.*ones(size(tvalues)), '-r', 'linewidth', 1);
+        elseif i == 3
+            plot(tVars, problem.max_v.*problem.roll_off(uVars(2,:)), '.r');
+            plot(tvalues_u, problem.max_v.*problem.roll_off(uvalues(2,:)), '-r', 'linewidth', 1);
+        end
     end
     
     if save_plots
@@ -35,7 +53,7 @@ function displayTrajectoryX(res, M, problem, save_plots, plot_name)
     end
     
     y = [res.X{:}];
-    figure(2); clf;
+    f = figure(2); clf; f.Position = [1041,4.698e+02,500,3e+02];
     angles = problem.myTrack.evaluate_angle(svalues);
     [Xs, Ys] = problem.myTrack.evaluate_track_param(svalues);
     plot(Xs, Ys, '--k'); hold on; %center-line

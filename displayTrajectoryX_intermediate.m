@@ -1,13 +1,15 @@
-function displayTrajectoryX_intermediate(iter, M, opti, X, U, problem)
+function displayTrajectoryX_intermediate(iter, M, opti, X, U, Yx, Yu, problem)
     step = 5;
     if mod(iter, step) ~= 0
         return
     end
     for i = 1:length(X)
         X{i} = opti.debug.value(X{i});
+        Yx{i} = opti.debug.value(Yx{i});
     end
     for i = 1:length(U)
         U{i} = opti.debug.value(U{i});
+        Yu{i} = opti.debug.value(Yu{i});
     end
 
     curr_res = struct('X', {X}, 'U', {U});
@@ -18,4 +20,6 @@ function displayTrajectoryX_intermediate(iter, M, opti, X, U, problem)
     plot_name = "";
     displayTrajectoryX(curr_res, M, problem, save_plots, plot_name);
     displayTrajectoryU(curr_res, M, problem, save_plots, plot_name);
+    
+    %pause();
 end

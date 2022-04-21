@@ -8,10 +8,14 @@ classdef mesh
     end
     
     methods
-        function obj = mesh(N, total_length, Nmin)
-            obj.s = linspace(0, total_length, N);
+        function obj = mesh(N, total_length, Nmin, minUDegree, disconts)
+            if nargin == 5
+                obj.s = init_intervals_discontinuities(disconts, N, total_length);
+            else
+                obj.s = linspace(0, total_length, N);
+            end
             obj.Nk = Nmin.*ones(N,1);
-            obj.Nu = 0+zeros(N,1);
+            obj.Nu = minUDegree+zeros(N,1);
             obj.sc = obj.add_collocation_times();
         end
         
@@ -23,4 +27,3 @@ classdef mesh
         end
     end
 end
-

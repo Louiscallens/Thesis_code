@@ -1,55 +1,26 @@
 function displayTrajectoryU(res, M, problem, save_plots, plot_name)
-    plot_polynomials = false;
+       
+    [tvalues, uvalues, tVars, uVars] = get_uvalues(res, M);
     
-    tvalues = [];
-    uvalues = [];
-    tVars = 0;
-    uVars = res.U{1};
-    for k = 1:length(res.U)-1
-        if M.Nu(k) == 0
-            tvalues = [tvalues, res.t(k), res.t(k+1)];
-            uvalues = [uvalues, res.U{k}, res.U{k}];
-            tVars = [tVars, (res.t(k)+res.t(k+1))/2];
-            uVars = [uVars, res.U{k}];
-        elseif M.Nu(k) == 1
-            uvalues = [uvalues, res.U{k} + (res.tc{k}(1:end-1)-res.tc{k}(1)).*(res.U{k+1}-res.U{k})./(res.tc{k}(end)-res.tc{k}(1))];
-            tvalues = [tvalues, res.tc{k}(1:end-1)];
-            tVars = [tVars, res.t(k), res.t(k+1)];
-            uVars = [uVars, res.U{k}, res.U{k+1}(:,1)];
-        else
-            if plot_polynomials
-                temp = linspace(res.tc{k}(1), res.tc{k}(end), 100);
-                uvalues = [uvalues, LagrangePolynomialEval(res.tc{k}(1:end-1), res.U{k}, temp)];
-                tvalues = [tvalues, temp];
-                tVars = [tVars, res.tc{k}(1:end-1)];
-                uVars = [uVars, res.U{k}];
-            else
-                uvalues = [uvalues, res.U{k}];
-                tvalues = [tvalues, res.tc{k}(1:end-1)];
-                tVars = [tVars, res.tc{k}(1:end-1)];
-                uVars = [uVars, res.U{k}];
-            end
-        end
-    end
-    uvalues = [uvalues, res.U{end}];
-    tvalues = [tvalues, res.t(end)];
-    
-    max_accel = 20;
-    min_accel = -5;
-    
-    figure(3); clf;
+    f = figure(3); clf; f.Position = [536.2000  467.4000  500.0000  300.0000];
     subplot(211);
-    plot(tVars, max_accel.*(1.1.*cos(uVars(2,:))).^4, '.-r'); hold on;
-    plot(tVars, min_accel.*(1.1.*cos(uVars(2,:)).^4), '.-r');
+    plot(tVars, problem.max_accel.*problem.roll_off(uVars(2,:)), '.r'); hold on;
+    plot(tVars, problem.min_accel.*problem.roll_off(uVars(2,:)), '.r');
+    plot(tvalues, problem.max_accel.*problem.roll_off(uvalues(2,:)), '-r', 'linewidth', 1);
+    plot(tvalues, problem.min_accel.*problem.roll_off(uvalues(2,:)), '-r', 'linewidth', 1);
     plot(tvalues, uvalues(1,:), 'b', 'linewidth', 1); hold on;
     plot(tVars, uVars(1,:), '.b');
     xline(res.t, ':', 'color', [0.5, 0.5, 0.5]);
+    xlim([res.t(1), res.t(end)]);
+    yline(0, 'color', [0.7, 0.7, 0.7]);
     xlabel('$t$', 'interpreter', 'latex');
     title('$u_1(t)$ (throttle)', 'interpreter', 'latex');
     subplot(212);
     plot(tvalues, uvalues(2,:), 'b', 'linewidth', 1); hold on;
     plot(tVars, uVars(2,:), '.b');
     xline(res.t, ':', 'color', [0.5, 0.5, 0.5]);
+    xlim([res.t(1), res.t(end)]);
+    yline(0, 'color', [0.7, 0.7, 0.7]);
     xlabel('$t$', 'interpreter', 'latex');
     title('$u_2(t)$ (steering angle)', 'interpreter', 'latex');
     

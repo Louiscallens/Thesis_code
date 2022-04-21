@@ -39,9 +39,9 @@ classdef smooth_hairpin
             
             for i = 1:length(svalues)
                 s = svalues(i);
-                if s < obj.s1
+                if s <= obj.s1
                     rho = obj.a - obj.b*s/2;
-                elseif s < obj.s2
+                elseif s <= obj.s2
                     rho = obj.m;
                 else
                     rho = obj.c + obj.b*s/2;
@@ -55,9 +55,9 @@ classdef smooth_hairpin
             
             for i = 1:length(svalues)
                 s = svalues(i);
-                if s < obj.s1
+                if s <= obj.s1
                     angle = -2*log(abs(obj.b*s-2*obj.a))/obj.b + obj.A;
-                elseif s < obj.s2
+                elseif s <= obj.s2
                     angle = obj.B + obj.C + s/obj.m;
                 else
                     angle = obj.D + obj.E + 2*log(abs(obj.b*s+2*obj.c))/obj.b;
@@ -71,9 +71,9 @@ classdef smooth_hairpin
             
             for i = 1:length(svalues)
                 s = svalues(i);
-                if s < obj.s1
+                if s <= obj.s1
                     der = 2/(2*obj.a-obj.b*s);
-                elseif s < obj.s2
+                elseif s <= obj.s2
                     der = 1/obj.m;
                 else
                     der = 2/(2*obj.c+obj.b*s);

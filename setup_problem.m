@@ -1,21 +1,55 @@
 function problem = setup_problem(problem_switch)
     switch problem_switch
-        case 0 % full problem
+        case 0 % chicane
             L1 = 100; L2 = 120; L3 = 160; L4 = 240; % original
             %L1 = 0; L2 = 20; L3 = 20; L4 = 20; % single left turn
             %L1 = -1.0e-5; L2 = 20; L3 = 60; L4 = 60; % no straights
             params.L1 = L1; params.L2 = L2; params.L3 = L3; params.L4 = L4; 
-            myTrack = track(params);
-            rhs = @(x, u, t) [x(3,:).*sin(x(2,:))./get_s_derivative(myTrack, x, t);
-                              x(3,:).*tan(u(2,:))./get_s_derivative(myTrack, x, t) - myTrack.evaluate_angle_derivative(t);
-                              u(1,:)./get_s_derivative(myTrack, x, t)];
-            problem = struct('t0', 0, 'nx', 3, 'nu', 2, 'x0', [0;0;0.01], 'rhs', rhs);
-            problem.myTrack = myTrack;
-            problem.xf = [0, NaN, NaN, NaN];
-            problem.L1 = L1; problem.L2 = L2; problem.L3 = L3; problem.L4 = L4;
-            problem.tf = myTrack.total_length;
-            problem.b = 4;
-        case 1 % no velocity state
+            myTrack = chicane(params);
+            disconts = [myTrack.s1, myTrack.s2, myTrack.s3];
+            reference_name_full = 'reference_chicane_N_150.mat';
+            reference_name = "reference_chicane";
+        case 1 % sine track
+            myTrack = smooth_track(0);
+            disconts = [];
+            reference_name_full = 'reference_smooth_track_N_150.mat';
+            reference_name = "reference_smooth_track";
+        case 2 % hairpin
+            myTrack = hairpin(struct('L1', 100, 'R', 20, 'L2', 60));
+            disconts = [myTrack.s1, myTrack.s2];
+            reference_name_full = 'reference_hairpin_N_150.mat';
+            reference_name = "reference_hairpin";
+        case 3 % generic track
+            myTrack = generic_track(struct('rho', @(s) 1./(1.0e-5 + 1.0e-1.*exp(-0.1.*(s-50).^2)), 'total_length', 100));
+            disconts = [];
+            reference_name_full = 'reference_generic_N_150.mat';
+            reference_name = "reference_generic";
+        case 4 % smooth hairpin
+            myTrack = smooth_hairpin(struct('total_length', 70, 'a', 500, 'm', 10, 's1', 20, 's2', 50));
+            %myTrack = smooth_hairpin(struct('total_length', 100, 'a', 500, 'm', 15, 's1', 50, 's2', 80));
+            disconts = [myTrack.s1, myTrack.s2];
+            reference_name_full = 'reference_smooth_hairpin_N_150.mat';
+            reference_name = "reference_smooth_hairpin";
+        case 5 % circle
+            myTrack = circle(struct('total_length', 2*pi*50, 'R', 50));
+            disconts = [];
+            reference_name_full = 'reference_circle_N_150.mat';
+            reference_name = "reference_circle";
+        case 6 % zoomed chicane
+            load('chicane_zoom_data_compact.mat');
+            L1 = 100; L2 = 120; L3 = 160; L4 = 240; % original
+            params.L1 = L1; params.L2 = L2; params.L3 = L3; params.L4 = L4;
+            N_first = 23; N_end = 46;
+            %N_first = 1; N_end = length(res.t);
+            s_start = M.s(N_first); s_end = M.s(N_end);
+            myTrack = chicane_zoom(s_start, s_end, params); %23 - 46;
+            disconts = [myTrack.complete_track.s1, myTrack.complete_track.s2, myTrack.complete_track.s3] - s_start;
+            disconts = disconts(disconts > 0);
+            disconts = disconts(disconts < s_end- s_start);
+            reference_name_full = 'reference_chicane_N_150.mat';
+            reference_name = "reference_chicane";
+        %{
+        case 6 % no velocity state
             %L1 = 100; L2 = 120; L3 = 160; L4 = 240; % original
             %L1 = -1.0e-5; L2 = 20; L3 = 20; L4 = 20; % single left turn
             %L1 = 0; L2 = 0; L3 = 40; L4 = 40; % single right turn
@@ -30,7 +64,10 @@ function problem = setup_problem(problem_switch)
             problem.L1 = L1; problem.L2 = L2; problem.L3 = L3; problem.L4 = L4;
             problem.tf = myTrack.total_length;
             problem.b = 4;
-        case 2 % velocity state, but it is constant
+            problem.max_accel = 20; problem.min_accel = -5;
+            problem.roll_off = @(x) exp(-100.*x.^2);
+            problem.max_v = 75;
+        case 7 % velocity state, but it is constant
             %L1 = 100; L2 = 120; L3 = 160; L4 = 240; % original
             L1 = 0; L2 = 20; L3 = 20; L4 = 20; % single left turn
             %L1 = 0; L2 = 0; L3 = 40; L4 = 40; % single right turn
@@ -46,7 +83,31 @@ function problem = setup_problem(problem_switch)
             problem.L1 = L1; problem.L2 = L2; problem.L3 = L3; problem.L4 = L4;
             problem.tf = myTrack.total_length;
             problem.b = 4;
+            problem.max_accel = 20; problem.min_accel = -5;
+            problem.roll_off = @(x) exp(-100.*x.^2);
+            problem.max_v = 75;
+            %}
     end
+    rhs = @(x, u, t) [x(3,:).*sin(x(2,:))./get_s_derivative(myTrack, x, t);
+                      x(3,:).*tan(u(2,:))./get_s_derivative(myTrack, x, t) - myTrack.evaluate_angle_derivative(t);
+                      u(1,:)./get_s_derivative(myTrack, x, t)];
+    problem = struct('t0', 0, 'nx', 3, 'nu', 2, 'x0', [0;0;50], 'rhs', rhs);
+    problem.myTrack = myTrack;
+    problem.disconts = disconts;
+    problem.xf = [0, NaN, NaN, NaN];
+    problem.tf = myTrack.total_length;
+    problem.b = 4;
+    problem.max_accel = 20; problem.min_accel = -5;
+    problem.roll_off = @(x) exp(-100.*x.^2);
+    problem.max_v = 75;
     problem.scale = problem.myTrack.total_length;
     problem.problem_switch = problem_switch;
+    problem.reference_name = reference_name;
+    problem.reference_name_full = reference_name_full;
+    
+    if problem_switch == 6
+        problem.x0 = res.X{N_first}(:,1);
+        problem.xf = res.X{N_end}(:,1);
+        problem.N_first = N_first; problem.N_end = N_end;
+    end
 end
