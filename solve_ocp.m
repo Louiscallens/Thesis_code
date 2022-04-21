@@ -64,7 +64,8 @@ function [X, U, Yx, Yu] = create_opti_variables(opti, problem, M)
     end
     if M.Nu(end) ~= 0
         U{end+1} = opti.variable(problem.nu,1);
-        Yu{end+1} = opti.variable(problem.nu*2, 1);
+        %Yu{end+1} = opti.variable(problem.nu*2, 1);
+        Yu{end+1} = casadi.MX.zeros(problem.nu*2, 1);
     end
 end
 function opti = add_initial_final_constraints(opti, problem, X)
@@ -86,7 +87,7 @@ function opti = add_path_constraints(opti, problem, M, X, U, Yx, Yu)
     switch problem.problem_switch
         case {0, 1, 2, 3, 4, 5, 6}
             u = [U{:}];
-            opti.subject_to(problem.min_accel.*problem.roll_off(u(2,:)) <= u(1,:)<= problem.max_accel.*problem.roll_off(u(2,:)));
+            opti.subject_to(problem.min_accel.*problem.roll_off(u(2,:)) <= u(1,:) <= problem.max_accel.*problem.roll_off(u(2,:)));
             opti.subject_to(-pi/4 <= u(2,:) <= pi/4);
             
             for k = 1:length(U)
@@ -104,7 +105,7 @@ function opti = add_path_constraints(opti, problem, M, X, U, Yx, Yu)
                 if M.Nu(i) ~= 1
                     uvals = U{i}(2,:);
                 else
-                    uvals = U{i}(2,:) + (M.sc{i}(1:end-1)-M.s(i))./(M.s(i+1)-M.s(i)).*U{i+1}(2,1);
+                    uvals = U{i}(2,:) + (M.sc{i}(1:end-1)-M.s(i))./(M.s(i+1)-M.s(i)).*(U{i+1}(2,1)-U{i}(2,:));
                 end
                 opti.subject_to(X{i}(3,:) <= problem.max_v.*problem.roll_off(uvals));
                 

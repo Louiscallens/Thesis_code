@@ -7,11 +7,11 @@ problem = setup_problem(problem_switch);
 
 %% specify method parameters
 method.N = 30;
-method.maxIter = 2;
+method.maxIter = 1;
 method.Nmin = 5;
 method.Nstep = 5;
 method.Nmax = 20;
-method.minUDegree = 0; %0: piecewise constant - 1: piecewise linear - 2: polynomial (control value for every collocation point
+method.minUDegree = 1; %0: piecewise constant - 1: piecewise linear - 2: polynomial (control value for every collocation point
 method.slack_performance_treshold = 1.0e-2;%1.0e-2;
 method.slack_path_treshold = 1.0e-10;%1.0e-2;
 method.err_treshold = 1.0e-8;
