@@ -19,7 +19,7 @@ function results = solve_ocp(M, problem, M_previous, res_previous)
     %options = struct('max_iter', 6000);
     %options = struct('tol', 1.0e-15);
     opti.solver('ipopt', struct('expand', true), options);
-    opti.callback(@(i) displayTrajectoryX_intermediate(i, M, opti, X, U, Yx, Yu, problem));
+    %opti.callback(@(i) displayTrajectoryX_intermediate(i, M, opti, X, U, Yx, Yu, problem));
     sol = opti.solve();
     %spy(sol.value(jacobian(opti.f, opti.x)));
     
