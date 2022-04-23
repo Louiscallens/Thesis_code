@@ -32,20 +32,20 @@ classdef chicane_zoom
         end
         
         function test_evaluate_track_param(obj)
-            svalues = linspace(-1, 1, 100);
+            svalues = linspace(0, obj.total_length, 100);
             [Xs, Ys] = obj.evaluate_track_param(svalues);
 
             figure; plot(Xs, Ys); axis equal;
         end
         
         function test_evaluate_radius_curvature(obj)
-            svalues = linspace(-1, 1, 100);
+            svalues = linspace(0, obj.total_length, 100);
             rhos = obj.evaluate_radius_curvature(svalues);
             figure; plot(svalues, rhos);
         end
         
         function test_evaluate_angles(obj)
-            svalues = linspace(1, -1, 1000);
+            svalues = linspace(0, obj.total_length, 1000);
             angles = obj.evaluate_angle(svalues);
             ders = obj.evaluate_angle_derivative(svalues);
             figure; hold on; plot(svalues, angles); plot(svalues, ders);

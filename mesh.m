@@ -1,10 +1,10 @@
 classdef mesh
    
     properties
-        s
-        sc
-        Nk
-        Nu
+        s       % edges of the intervals
+        sc      % cell array where each cell contains the collocation points of that interval
+        Nk      % List to indicate the number of collocation points in every interval
+        Nu      % List to indicate the type of control in every interval (constant, linear, polynomial)
     end
     
     methods

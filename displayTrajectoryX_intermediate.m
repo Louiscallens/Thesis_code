@@ -1,5 +1,4 @@
-function displayTrajectoryX_intermediate(iter, M, opti, X, U, Yx, Yu, problem)
-    step = 5;
+function displayTrajectoryX_intermediate(iter, M, opti, X, U, Yx, Yu, problem, step)
     if mod(iter, step) ~= 0
         return
     end
