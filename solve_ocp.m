@@ -15,13 +15,13 @@ function results = solve_ocp(M, problem, M_previous, res_previous)
     
     % solve OCP   
     
-    %options = struct('nlp_scaling_method','none','mumps_permuting_scaling',0,'mumps_scaling',0,'min_refinement_steps',5,'max_refinement_steps', 20);
+    options = struct('nlp_scaling_method','none','mumps_permuting_scaling',0,'mumps_scaling',0,'min_refinement_steps',5,'max_refinement_steps', 20);
     options.max_iter = 10000;
-    %options = struct('tol', 1.0e-15);
+    %options.tol = 1.0e-15;
     opti.solver('ipopt', struct('expand', true), options);
     %opti.callback(@(i) displayTrajectoryX_intermediate(i, M, opti, X, U, Yx, Yu, problem, 100));
     sol = opti.solve();
-    %spy(sol.value(jacobian(opti.f, opti.x)));
+    %figure; spy(sol.value(jacobian(opti.f, opti.x)));
     
     results = construct_result(sol, X, U, Yx, Yu, M, problem);
 end
@@ -62,7 +62,7 @@ function opti = add_initial_final_constraints(opti, problem, X)
     switch problem.problem_switch
         case {0, 1, 2, 3, 4, 5, 7}
             opti.subject_to(X{1}(1:2,1) == problem.x0(1:2));
-            %opti.subject_to(X{1}(3,1) <= problem.x0(3));
+            opti.subject_to(X{1}(3,1) <= problem.x0(3));
             %opti.subject_to(X{end}(1) == problem.xf(1));
         case 6
             opti.subject_to(X{1}(:,1) == problem.x0);
@@ -74,7 +74,7 @@ function opti = add_initial_final_constraints(opti, problem, X)
 end
 function opti = add_path_constraints(opti, problem, M, X, U, Yx, Yu)
     switch problem.problem_switch
-        case {0, 1, 2, 3, 4, 5, 6}
+        case {0, 1, 2, 3, 4, 5, 6, 7}
             u = [U{:}];
             opti.subject_to(problem.min_accel.*problem.roll_off(u(2,:)) <= u(1,:) <= problem.max_accel.*problem.roll_off(u(2,:)));
             opti.subject_to(-pi/4 <= u(2,:) <= pi/4);
@@ -140,36 +140,6 @@ function opti = add_path_constraints(opti, problem, M, X, U, Yx, Yu)
             opti.subject_to(yx(5,:) >= 0);
             opti.subject_to(yx(6,:) >= 0);
             %}
-        
-        case 7
-            u = [U{:}];
-            opti.subject_to(u(1,:) == 0.01);
-            opti.subject_to(-pi/4 <= u(2,:) <= pi/4);
-            
-            for k = 1:length(U)
-                Yu{k}(1,:) =  U{k}(1,:) - problem.min_accel.*problem.roll_off(U{k}(2,:));
-                Yu{k}(2,:) = problem.max_accel.*problem.roll_off(U{k}(2,:)) - U{k}(1,:);
-                Yu{k}(3,:) = U{k}(2,:) - -pi/4;
-                Yu{k}(4,:) = pi/4 - U{k}(2,:);
-            end
-            
-            x = [X{:}]; x1 = x(1,:); x2 = x(2,:); x3 = x(3,:);
-            opti.subject_to(-problem.b <= x1 <= problem.b);
-            opti.subject_to(-pi/2 <= x2 <= pi/2);
-            opti.subject_to(0 <= x3);
-            for i = 1:length(X)-1
-                if M.Nu(i) ~= 1
-                    uvals = U{i}(2,:);
-                else
-                    uvals = U{i}(2,:) + (M.sc{i}(1:end-1)-M.s(i))./(M.s(i+1)-M.s(i)).*(U{i+1}(2,1)-U{i}(2,:));
-                end
-                opti.subject_to(X{i}(3,:) <= problem.max_v.*problem.roll_off(uvals));
-                
-                Yx{i}(1,:) = problem.b - X{i}(1,:); Yx{i}(2,:) = X{i}(1,:) - -problem.b;
-                Yx{i}(3,:) = pi/2 - X{i}(2,:); Yx{i}(4,:) = X{i}(2,:) - -pi/2;
-                Yx{i}(5,:) = X{i}(3,:); Yx{i}(6,:) = problem.max_v.*problem.roll_off(uvals) - X{i}(3,:);
-            end
-            opti.subject_to(X{end}(3,:) <= problem.max_v.*problem.roll_off(U{end}(2,:)));
             
         otherwise
             u = [U{:}];            

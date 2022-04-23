@@ -2,13 +2,13 @@ import casadi.*
 set(groot, 'defaultAxesTickLabelInterpreter','latex'); set(groot, 'defaultLegendInterpreter','latex');
 
 %% set up the problem
-problem_switch = 6; % 0: chicane - 1: smooth sine - 2: hairpin - 3: generic - 4: smooth hairpin - 5: circle - 6: zoomed chicane
+problem_switch = 6; % 0: chicane - 1: smooth sine - 2: hairpin - 3: generic - 4: smooth hairpin - 5: circle - 6: zoomed chicane - 7: straight line
 problem = setup_problem(problem_switch);
 
 %% specify method parameters
 method.N = 30;
 method.maxIter = 1;
-method.Nmin = 5;
+method.Nmin = 2;
 method.Nstep = 5;
 method.Nmax = 20;
 method.minUDegree = 2; %0: piecewise constant - 1: piecewise linear - 2: polynomial (control value for every collocation point)
@@ -23,7 +23,7 @@ method.save_plots = false;
 method.plot_name = "figs/poster/hairpin";
 method.og_plot_name = method.plot_name;
 
-method.load_reference = true;
+method.load_reference = false || (problem_switch == 6);
 method.save_result = false;
 
 %% solve the problem

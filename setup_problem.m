@@ -2,9 +2,10 @@ function problem = setup_problem(problem_switch)
     switch problem_switch
         case 0 % chicane
             L1 = 100; L2 = 120; L3 = 160; L4 = 240; % original
+            %L1 = 600; L2 = 620; L3 = 660; L4 = 740; % original
             %L1 = 0; L2 = 20; L3 = 20; L4 = 20; % single left turn
             %L1 = -1.0e-5; L2 = 20; L3 = 60; L4 = 60; % no straights
-            %L1 = 100; L2 = 100; L3 = 100; L4 = 100; %straight line --> change disconts as well
+            L1 = 100; L2 = 100; L3 = 100; L4 = 100; %straight line --> change disconts as well
             params.L1 = L1; params.L2 = L2; params.L3 = L3; params.L4 = L4; 
             myTrack = chicane(params);
             disconts = [myTrack.s1, myTrack.s2, myTrack.s3];
@@ -49,11 +50,12 @@ function problem = setup_problem(problem_switch)
             disconts = disconts(disconts < s_end- s_start);
             reference_name_full = 'reference_chicane_N_150.mat';
             reference_name = "reference_chicane";
-        case 7
-            myTrack = circle(struct('total_length', 2*pi*50, 'R', 50));
+        case 7 %straight
+            params = struct('total_length', 100);
+            myTrack = straight(params);
             disconts = [];
-            reference_name_full = 'reference_circle_N_150.mat';
-            reference_name = "reference_circle";
+            reference_name_full = 'reference_chicane_N_150.mat';
+            reference_name = 'reference_chicane';
         %{
         case 6 % no velocity state
             %L1 = 100; L2 = 120; L3 = 160; L4 = 240; % original
@@ -115,5 +117,9 @@ function problem = setup_problem(problem_switch)
         problem.x0 = res.X{N_first}(:,1);
         problem.xf = res.X{N_end}(:,1);
         problem.N_first = N_first; problem.N_end = N_end;
+    end
+    
+    if problem_switch == 7
+        problem.roll_off = @(x) 1;
     end
 end
