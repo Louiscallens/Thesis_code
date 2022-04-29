@@ -5,7 +5,7 @@ function problem = setup_problem(problem_switch)
             %L1 = 600; L2 = 620; L3 = 660; L4 = 740; % original
             %L1 = 0; L2 = 20; L3 = 20; L4 = 20; % single left turn
             %L1 = -1.0e-5; L2 = 20; L3 = 60; L4 = 60; % no straights
-            L1 = 100; L2 = 100; L3 = 100; L4 = 100; %straight line --> change disconts as well
+            %L1 = 100; L2 = 100; L3 = 100; L4 = 100; %straight line --> change disconts as well
             params.L1 = L1; params.L2 = L2; params.L3 = L3; params.L4 = L4; 
             myTrack = chicane(params);
             disconts = [myTrack.s1, myTrack.s2, myTrack.s3];
@@ -121,5 +121,6 @@ function problem = setup_problem(problem_switch)
     
     if problem_switch == 7
         problem.roll_off = @(x) 1;
+        problem.max_v = 150;
     end
 end

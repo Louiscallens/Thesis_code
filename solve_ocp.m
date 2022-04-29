@@ -17,8 +17,10 @@ function results = solve_ocp(M, problem, M_previous, res_previous)
     
     options = struct('nlp_scaling_method','none','mumps_permuting_scaling',0,'mumps_scaling',0,'min_refinement_steps',5,'max_refinement_steps', 20);
     options.max_iter = 10000;
-    %options.tol = 1.0e-15;
-    opti.solver('ipopt', struct('expand', true), options);
+    options.tol = 1.0e-15;
+    opti.solver('sqpmethod', struct('expand', true, 'convexify_strategy', 'regularize', 'max_iter', 600, ...
+        'qpsol', 'osqp', 'qpsol_options', struct('osqp', struct('eps_abs', 1.0e-9, 'eps_rel', 1.0e-9))));
+    %opti.solver('ipopt', struct('expand', true), options);
     %opti.callback(@(i) displayTrajectoryX_intermediate(i, M, opti, X, U, Yx, Yu, problem, 100));
     sol = opti.solve();
     %figure; spy(sol.value(jacobian(opti.f, opti.x)));
@@ -170,6 +172,7 @@ function opti = add_coll_constraints(opti, problem, M, X, U)
         xvalues = [X{i}, X{i+1}(:,1)];
         for j = 1:M.Nk(i)
             opti.subject_to(dot_Pi(xvalues, tau(j)) == problem.rhs(X{i}(:,j), uvalues(:,j), tau(j))); % forward collocation
+            %opti.subject_to(LagrangePolynomialDiff2(tau, xvalues, tau(j)) == problem.rhs(X{i}(:,j), uvalues(:,j), tau(j))); % forward collocation
             %opti.subject_to(dot_Pi(xvalues, tau(j+1)) == problem.rhs(xvalues(:,j+1), uvalues(:,j+1), tau(j+1))); % backward collocation
         end
         % continuity constraint (shouldn't be needed) (does not deal well with discontinuities in rho)
