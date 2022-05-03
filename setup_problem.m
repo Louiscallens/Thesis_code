@@ -99,6 +99,9 @@ function problem = setup_problem(problem_switch)
     rhs = @(x, u, t) [x(3,:).*sin(x(2,:))./get_s_derivative(myTrack, x, t);
                       x(3,:).*tan(u(2,:))./get_s_derivative(myTrack, x, t) - myTrack.evaluate_angle_derivative(t);
                       u(1,:)./get_s_derivative(myTrack, x, t)];
+    %rhs = @(x, u, t) [zeros(size(x(3,:)));
+    %                  myTrack.evaluate_angle_derivative(t);
+    %                  u(1,:)./get_s_derivative(myTrack, x, t)];
     problem = struct('t0', 0, 'nx', 3, 'nu', 2, 'x0', [0;0;50], 'rhs', rhs);
     problem.myTrack = myTrack;
     problem.disconts = disconts;
@@ -106,7 +109,7 @@ function problem = setup_problem(problem_switch)
     problem.tf = myTrack.total_length;
     problem.b = 4;
     problem.max_accel = 20; problem.min_accel = -5;
-    problem.roll_off = @(x) exp(-100.*x.^2);
+    problem.roll_off = @(x) 1;%exp(-100.*x.^2);
     problem.max_v = 75;
     problem.scale = problem.myTrack.total_length;
     problem.problem_switch = problem_switch;
