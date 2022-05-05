@@ -3,7 +3,7 @@ function results = solve_ocp(M, problem, M_previous, res_previous)
         
     [X, U, Yx, Yu] = create_opti_variables(opti, problem, M);
     opti = add_initial_final_constraints(opti, problem, X);
-    opti = add_path_constraints(opti, problem, M, X, U, Yx, Yu);
+    [opti, Yx, Yu] = add_path_constraints(opti, problem, M, X, U, Yx, Yu);
     opti = add_coll_constraints(opti, problem, M, X, U);
     opti = add_objective(opti, problem, M, X, U);
     
@@ -41,24 +41,28 @@ function [X, U, Yx, Yu] = create_opti_variables(opti, problem, M)
     %Yx{Nb_inter+1} = opti.variable(problem.nx*2, 1);
     Yx{Nb_inter+1} = casadi.MX.zeros(problem.nx*2, 1);
     
-    U = {};
+    U = cell(problem.nu, 0);
     Yu = {};
     for i = 1:Nb_inter
-        if M.Nu(i) == 0 || M.Nu(i) == 1
-            U{i} = opti.variable(problem.nu, 1);
-            %Yu{i} = opti.variable(problem.nu*2, 1);
-            Yu{i} = casadi.MX.zeros(problem.nu*2, 1);
-        else
-            U{i} = opti.variable(problem.nu, M.Nk(i));
-            %Yu{i} = opti.variable(problem.nu*2, M.Nk(i));
-            Yu{i} = casadi.MX.zeros(problem.nu*2, M.Nk(i));
+        Yu{i} = casadi.MX.zeros(2*problem.nu, M.Nk(i));
+        for l = 1:problem.nu
+            if M.Nu(l,i) == 0 || M.Nu(l,i) == 1
+                U{l}{i} = opti.variable(1, 1);
+            else
+                U{l}{i} = opti.variable(1, M.Nk(i));
+            end
         end
     end
-    if M.Nu(end) ~= 0
-        U{end+1} = opti.variable(problem.nu,1);
-        %Yu{end+1} = opti.variable(problem.nu*2, 1);
-        Yu{end+1} = casadi.MX.zeros(problem.nu*2, 1);
+    for l = 1:problem.nu
+        if M.Nu(l,end) ~= 0
+            U{l}{end+1} = opti.variable(1,1);
+        end
     end
+    U = expandU(U, M);
+    if length(U) > length(Yu)
+        Yu{end+1} = opti.variable(problem.nu*2,1);
+    end
+    
 end
 function opti = add_initial_final_constraints(opti, problem, X)
     switch problem.problem_switch
@@ -74,56 +78,13 @@ function opti = add_initial_final_constraints(opti, problem, X)
             opti.subject_to(X{end}(:,1) == problem.xf);
     end
 end
-function opti = add_path_constraints(opti, problem, M, X, U, Yx, Yu)
+function [opti, Yx, Yu] = add_path_constraints(opti, problem, M, X, U, Yx, Yu)
     switch problem.problem_switch
         case {0, 1, 2, 3, 4, 5, 6, 7}
-            %{
-            u = [U{:}];
-            opti.subject_to(problem.min_accel.*problem.roll_off(u(2,:)) <= u(1,:) <= problem.max_accel.*problem.roll_off(u(2,:)));
-            opti.subject_to(-pi/4 <= u(2,:) <= pi/4);
-            
-            for k = 1:length(U)
-                Yu{k}(1,:) =  U{k}(1,:) - problem.min_accel.*problem.roll_off(U{k}(2,:));
-                Yu{k}(2,:) = problem.max_accel.*problem.roll_off(U{k}(2,:)) - U{k}(1,:);
-                Yu{k}(3,:) = U{k}(2,:) - -pi/4;
-                Yu{k}(4,:) = pi/4 - U{k}(2,:);
-            end
-            
-            x = [X{:}]; x1 = x(1,:); x2 = x(2,:); x3 = x(3,:);
-            opti.subject_to(-problem.b <= x1 <= problem.b);
-            opti.subject_to(-pi/2 <= x2 <= pi/2);
-            opti.subject_to(0 <= x3);
-            for i = 1:length(X)-1
-                if M.Nu(i) == 0
-                    uvals = U{i}(2,:).*ones(size(M.sc{i}(1:end-1)));
-                elseif M.Nu(i) == 1
-                    uvals = U{i}(2,:) + (M.sc{i}(1:end-1)-M.s(i))./(M.s(i+1)-M.s(i)).*(U{i+1}(2,1)-U{i}(2,:));
-                else
-                    uvals = U{i}(2,:);
-                end
-                
-                %opti.subject_to(X{i}(3,:) <= problem.max_v.*problem.roll_off(uvals));
-                for j = 1:length(M.sc{i})-1
-                    opti.subject_to(X{i}(3,:) <= problem.max_v.*problem.roll_off(uvals(j)));
-                end
-                
-                Yx{i}(1,:) = problem.b - X{i}(1,:); Yx{i}(2,:) = X{i}(1,:) - -problem.b;
-                Yx{i}(3,:) = pi/2 - X{i}(2,:); Yx{i}(4,:) = X{i}(2,:) - -pi/2;
-                Yx{i}(5,:) = X{i}(3,:); Yx{i}(6,:) = problem.max_v.*problem.roll_off(uvals) - X{i}(3,:);
-            end
-            opti.subject_to(X{end}(3,:) <= problem.max_v.*problem.roll_off(U{end}(2,:)));
-            %}
-            
             % loop over all intervals
             for k = 1:length(M.s)-1
                 get_states = @(s) LagrangePolynomialEval(M.sc{k}, [X{k}, X{k}(:,1)], s);
-                if M.Nu(k) == 0
-                    get_inputs = @(s) U{k}(:,1);
-                elseif M.Nu(k) == 1
-                    get_inputs = @(s) linInterpol([M.s(k), M.s(k+1)], [U{k}(:,1), U{k+1}(:,1)], s);
-                else
-                    get_inputs = @(s) linInterpol(M.sc{k}, [U{k}, U{k+1}(:,1)], s);
-                end
+                get_inputs = @(s) linInterpol(M.sc{k}, [U{k}, U{k+1}(:,1)], s);
                 
                 % apply constraints to collocation points
                 for j = 1:length(M.sc{k})-1
@@ -134,11 +95,18 @@ function opti = add_path_constraints(opti, problem, M, X, U, Yx, Yu)
                     opti.subject_to(-problem.b <= x(1) <= problem.b);
                     opti.subject_to(-pi/2 <= x(2) <= pi/2);
                     opti.subject_to(0 <= x(3) <= problem.max_v.*problem.roll_off(u(2)));
+                    Yu{k}(1,j) = U{k}(1,j) - problem.min_accel.*problem.roll_off(U{k}(2,j));
+                    Yu{k}(2,j) = problem.max_accel.*problem.roll_off(U{k}(2,j)) - U{k}(1,j);
+                    Yu{k}(3,j) = U{k}(2,j) - -pi/4;
+                    Yu{k}(4,j) = pi/4 - U{k}(2,j);
+                    Yx{k}(1,j) = problem.b - X{k}(1,j); Yx{k}(2,j) = X{k}(1,j) - -problem.b;
+                    Yx{k}(3,j) = pi/2 - X{k}(2,j); Yx{k}(4,j) = X{k}(2,j) - -pi/2;
+                    Yx{k}(5,j) = X{k}(3,j); Yx{k}(6,j) = problem.max_v.*problem.roll_off(U{k}(2,j)) - X{k}(3,j);
                 end
                 
                 % apply constraints to linearly spaced points in the
                 % interval
-                Nb_extra_constraint_pts = 5;
+                Nb_extra_constraint_pts = 0;
                 svalues = linspace(M.s(k), M.s(k+1), 2+Nb_extra_constraint_pts);
                 for j = 2:length(svalues)-1
                     x = get_states(svalues(j));
@@ -155,6 +123,13 @@ function opti = add_path_constraints(opti, problem, M, X, U, Yx, Yu)
             opti.subject_to(-problem.b <= X{end}(1,1) <= problem.b);
             opti.subject_to(-pi/2 <= X{end}(2,1) <= pi/2);
             opti.subject_to(0 <= X{end}(3,1) <= problem.max_v.*problem.roll_off(U{end}(2,1)));
+            Yu{end}(1,end) = U{end}(1,end) - problem.min_accel.*problem.roll_off(U{end}(2,end));
+            Yu{end}(2,end) = problem.max_accel.*problem.roll_off(U{end}(2,end)) - U{end}(1,end);
+            Yu{end}(3,end) = U{end}(2,end) - -pi/4;
+            Yu{end}(4,end) = pi/4 - U{end}(2,end);
+            Yx{end}(1,end) = problem.b - X{end}(1,end); Yx{end}(2,end) = X{end}(1,end) - -problem.b;
+            Yx{end}(3,end) = pi/2 - X{end}(2,end);      Yx{end}(4,end) = X{end}(2,end) - -pi/2;
+            Yx{end}(5,end) = X{end}(3,end);             Yx{end}(6,end) = problem.max_v.*problem.roll_off(U{end}(2,end)) - X{end}(3,end);
             
         otherwise
             u = [U{:}];            

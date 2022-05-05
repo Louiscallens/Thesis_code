@@ -6,7 +6,7 @@ function results = construct_result(sol, X, U, Yx, Yu, M, problem)
         yxres{i} = full(sol.value(Yx{i})); yures{i} = full(sol.value(Yu{i}));
     end
     xres{end+1} = sol.value(X{end}); yxres{end+1} = sol.value(Yx{end});
-    ures{end+1} = full(sol.value(U{end})); yures{end+1} = sol.value(Yu{end});
+    ures{end+1} = full(sol.value(U{end})); %yures{end+1} = sol.value(Yu{end});
     
     [tc, t] = add_times_to_result(xres, M, problem);
     
