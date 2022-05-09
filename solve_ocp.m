@@ -133,12 +133,18 @@ function opti = add_path_constraints(opti, problem, M, X, U, Yx, Yu)
                     opti.subject_to(-pi/4 <= u(2) <= pi/4);
                     opti.subject_to(-problem.b <= x(1) <= problem.b);
                     opti.subject_to(-pi/2 <= x(2) <= pi/2);
-                    opti.subject_to(0 <= x(3) <= problem.max_v.*problem.roll_off(u(2)));
+                    %opti.subject_to(0 <= x(3) <= problem.max_v.*problem.roll_off(u(2)));
+                    for t = 1:length(M.sc{k})-1
+                        if t == j
+                            uvals = get_inputs(M.sc{k}(t));
+                            opti.subject_to(0 <= x(3) <= problem.max_v.*problem.roll_off(uvals(2)));
+                        end
+                    end
                 end
                 
                 % apply constraints to linearly spaced points in the
                 % interval
-                Nb_extra_constraint_pts = 5;
+                Nb_extra_constraint_pts = 0;
                 svalues = linspace(M.s(k), M.s(k+1), 2+Nb_extra_constraint_pts);
                 for j = 2:length(svalues)-1
                     x = get_states(svalues(j));
@@ -218,10 +224,25 @@ end
 function opti = add_objective(opti, problem, M, X, U)
     switch problem.problem_switch
         otherwise
-            
+            regularization = 0;
             int_approx = 0;
             %counter = 0;
             for i = 1:length(M.s)-1
+                I = get_integration_matrix(M.sc{i});
+                int_vals = NaN + casadi.MX.zeros(size(M.sc{i}));
+                xvals = [X{i}, X{i+1}(:,1)];
+                for j = 1:length(M.sc{i})
+                    int_vals(j) = 1/get_s_derivative(problem.myTrack, xvals(:,j), M.sc{i}(j));
+                end
+                int_approx = int_approx + transpose(I(end,:)*int_vals');
+                
+                regularization = regularization + sumsqr(U{i} - mean(U{i},2)); % penalize difference from mean in this control interval
+                %for n = 1:problem.nu
+                %    regularization = regularization + sumsqr(U{i}(n,:) - (U{i}(n,1) + (M.sc{i}(1:end-1)-M.s(i))./(M.s(i+1)-M.s(i)).*(U{i}(n,:)-U{i}(n,1)))); % penalize difference from linear control in this interval
+                %end
+                
+                %}
+                %{
                 for j = 1:length(M.sc{i})-2
                     a = 1/get_s_derivative(problem.myTrack, X{i}(:,j), M.sc{i}(j));
                     b = 1/get_s_derivative(problem.myTrack, X{i}(:,j+1), M.sc{i}(j+1));
@@ -234,9 +255,10 @@ function opti = add_objective(opti, problem, M, X, U)
                 width = M.sc{i}(end)-M.sc{i}(end-1);
                 int_approx = int_approx + (a+b)/2*width;
                 %counter = counter + 1;
+                %}
             end
             %disp(counter);
-            opti.minimize(int_approx);
+            opti.minimize(int_approx + 1.0e-6*regularization);
             %}
             %x = [X{:}];
             %u = [U{:}];
