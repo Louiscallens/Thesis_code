@@ -7,7 +7,7 @@ problem = setup_problem(problem_switch);
 
 %% specify method parameters
 method.N = 30;
-method.maxIter = 1;
+method.maxIter = 2;
 method.Nmin = 2;
 method.Nstep = 5;
 method.Nmax = 20;
@@ -29,7 +29,7 @@ method.save_result = false;
 %% solve the problem
 
 % initialize mesh
-M = mesh(method.N, problem.myTrack.total_length, method.Nmin, method.minUDegree, problem.disconts);
+M = mesh(method.N, problem.myTrack.total_length, method.Nmin, method.minUDegree, problem.nu, problem.disconts);
 %load('mesh_chicane_trouble.mat');
 %load('mesh_chicane_oscillations.mat');
 usedMeshes = {};

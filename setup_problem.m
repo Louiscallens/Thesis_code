@@ -109,7 +109,7 @@ function problem = setup_problem(problem_switch)
     problem.tf = myTrack.total_length;
     problem.b = 4;
     problem.max_accel = 20; problem.min_accel = -5;
-    problem.roll_off = @(x) 1;%exp(-100.*x.^2);
+    problem.roll_off = @(x) exp(-100.*x.^2);
     problem.max_v = 75;
     problem.scale = problem.myTrack.total_length;
     problem.problem_switch = problem_switch;

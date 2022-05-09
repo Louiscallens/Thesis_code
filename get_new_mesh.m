@@ -6,9 +6,11 @@ function Mnew = get_new_mesh(res, M, problem, method, save_plots, plot_name)
     to_split = [];
     to_increase = [];
     priority_increase = [];
+    active_perf_const = [];
     for k = 1:Nb_inter
         % check slackness of performance constraints
         slack = [mean(res.Yu{k},2); mean(res.Yx{k}(3:end,:),2)];
+        active_perf_const = [active_perf_const, slack < method.slack_performance_treshold];
         if min(slack) > method.slack_performance_treshold
             to_split = [to_split, k];
         end
@@ -30,11 +32,12 @@ function Mnew = get_new_mesh(res, M, problem, method, save_plots, plot_name)
     end
         
     knew = 1;
-    Mnew = mesh(1, problem.myTrack.total_length, method.Nmin, method.minUDegree);
+    Mnew = mesh(1, problem.myTrack.total_length, method.Nmin, method.minUDegree, problem.nu);
     splitted = [];
     increased_u = [];
     increased_x = [];
     for k = 1:Nb_inter
+        % treat very innacurate intervals first
         if ismember(k, priority_increase)
             if M.Nk(k) + method.Nstep <= method.Nmax
                 [M, Mnew, knew] = increase_nb_coll_pts(M, Mnew, k, knew, method);
@@ -43,6 +46,8 @@ function Mnew = get_new_mesh(res, M, problem, method, save_plots, plot_name)
                 [M, Mnew, knew] = split_interval(M, Mnew, k, knew, method);
                 splitted = [splitted, k];
             end
+            
+        % split intervals where no constraint is active
         elseif ismember(k, to_split)
             %if M.Nu(k) < 1 && (k ==1 || ismember(k-1, to_split)) && (k == Nb_inter || ismember(k+1, to_split)) % does not exceed linear controls
             if M.Nu(k) <= 1 && (k ==1 || ismember(k-1, to_split)) && (k == Nb_inter || ismember(k+1, to_split))
@@ -52,6 +57,9 @@ function Mnew = get_new_mesh(res, M, problem, method, save_plots, plot_name)
                 [M, Mnew, knew] = split_interval(M, Mnew, k, knew, method);
                 splitted = [splitted, k];
             end
+            
+        % treat those intervals that should increase their number of
+        % collocation points
         elseif ismember(k, to_increase)
             if M.Nk(k) + method.Nstep <= method.Nmax
                 [M, Mnew, knew] = increase_nb_coll_pts(M, Mnew, k, knew, method);
@@ -60,8 +68,20 @@ function Mnew = get_new_mesh(res, M, problem, method, save_plots, plot_name)
                 [M, Mnew, knew] = split_interval(M, Mnew, k, knew, method);
                 splitted = [splitted, k];
             end
+        
         else
+            % copy the interval
             [M, Mnew, knew] = copy_interval(M, Mnew, k, knew, method);
+            
+            % prevent masking effect
+            curr_active = active_perf_const(:,k);
+            if ~(curr_active(1) || curr_active(2)) % first control input is not limited
+                Mnew.Nu(1,knew) = min(2, M.Nu(1,k)+1);
+            end
+            if ~(curr_active(3) || curr_active(4)) % second control input is not limited
+                % increase polynomial order of second control input
+                Mnew.Nu(2,knew) = min(2, M.Nu(2,k)+1);
+            end
         end
     end
     
@@ -74,7 +94,7 @@ end
 function [M, Mnew, knew] = increase_polynomial_order(M, Mnew, k, knew, method)
     Mnew.Nk(knew) = M.Nk(k);
 	Mnew.s(knew) = M.s(k);
-    Mnew.Nu(knew) = M.Nu(k)+1;
+    Mnew.Nu(:,knew) = M.Nu(:,k)+1;
     knew = knew + 1;
 end
 function [M, Mnew, knew] = split_interval(M, Mnew, k, knew, method)
@@ -87,19 +107,19 @@ function [M, Mnew, knew] = split_interval(M, Mnew, k, knew, method)
     for j = 0:Bk-1
         Mnew.s(knew+j) = M.s(k) + j*ds;
         Mnew.Nk(knew+j) = method.Nmin;
-        Mnew.Nu(knew+j) = M.Nu(k);
+        Mnew.Nu(:,knew+j) = M.Nu(:,k);
     end
     knew = knew + Bk;
 end
 function [M, Mnew, knew] = increase_nb_coll_pts(M, Mnew, k, knew, method)
     Mnew.Nk(knew) = M.Nk(k) + method.Nstep;
     Mnew.s(knew) = M.s(k);
-    Mnew.Nu(knew) = M.Nu(k);
+    Mnew.Nu(:,knew) = M.Nu(:,k);
     knew = knew + 1;
 end
 function [M, Mnew, knew] = copy_interval(M, Mnew, k, knew, method)
     Mnew.Nk(knew) = M.Nk(k);
     Mnew.s(knew) = M.s(k);
-    Mnew.Nu(knew) = M.Nu(k);
+    Mnew.Nu(:,knew) = M.Nu(:,k);
     knew = knew + 1;
 end
