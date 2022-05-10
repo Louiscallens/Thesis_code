@@ -49,8 +49,8 @@ function Mnew = get_new_mesh(res, M, problem, method, save_plots, plot_name)
             
         % split intervals where no constraint is active
         elseif ismember(k, to_split)
-            %if M.Nu(k) < 1 && (k ==1 || ismember(k-1, to_split)) && (k == Nb_inter || ismember(k+1, to_split)) % does not exceed linear controls
-            if M.Nu(k) <= 1 && (k ==1 || ismember(k-1, to_split)) && (k == Nb_inter || ismember(k+1, to_split))
+            if M.Nu(k) < 1 && (k ==1 || ismember(k-1, to_split)) && (k == Nb_inter || ismember(k+1, to_split)) % does not exceed linear controls
+            %if M.Nu(k) <= 1 && (k ==1 || ismember(k-1, to_split)) && (k == Nb_inter || ismember(k+1, to_split))
                 [M, Mnew, knew] = increase_polynomial_order(M, Mnew, k, knew, method);
                 increased_u = [increased_u, k];
             else
@@ -73,14 +73,17 @@ function Mnew = get_new_mesh(res, M, problem, method, save_plots, plot_name)
             % copy the interval
             [M, Mnew, knew] = copy_interval(M, Mnew, k, knew, method);
             
-            % prevent masking effect
+            % prevent masking effect ! knew is alreay updated, so we use
+            % the old value !
             curr_active = active_perf_const(:,k);
             if ~(curr_active(1) || curr_active(2)) % first control input is not limited
-                Mnew.Nu(1,knew) = min(2, M.Nu(1,k)+1);
+                Mnew.Nu(1,knew-1) = min(2, M.Nu(1,k)+1);
+                %disp("incraesing polynomial order of u1");
             end
             if ~(curr_active(3) || curr_active(4)) % second control input is not limited
                 % increase polynomial order of second control input
-                Mnew.Nu(2,knew) = min(2, M.Nu(2,k)+1);
+                Mnew.Nu(2,knew-1) = min(2, M.Nu(2,k)+1);
+                %disp("incraesing polynomial order of u2");
             end
         end
     end

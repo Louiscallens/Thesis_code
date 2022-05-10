@@ -8,7 +8,9 @@ function displayTrajectoryX_intermediate(iter, M, opti, X, U, Yx, Yu, problem, s
     end
     for i = 1:length(U)
         U{i} = opti.debug.value(U{i});
-        Yu{i} = opti.debug.value(Yu{i});
+        if i ~= length(U)
+            Yu{i} = opti.debug.value(Yu{i});
+        end
     end
 
     curr_res = struct('X', {X}, 'U', {U});

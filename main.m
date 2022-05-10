@@ -2,13 +2,13 @@ import casadi.*
 set(groot, 'defaultAxesTickLabelInterpreter','latex'); set(groot, 'defaultLegendInterpreter','latex');
 
 %% set up the problem
-problem_switch = 6; % 0: chicane - 1: smooth sine - 2: hairpin - 3: generic - 4: smooth hairpin - 5: circle - 6: zoomed chicane - 7: straight line
+problem_switch = 4; % 0: chicane - 1: smooth sine - 2: hairpin - 3: generic - 4: smooth hairpin - 5: circle - 6: zoomed chicane - 7: straight line
 problem = setup_problem(problem_switch);
 
 %% specify method parameters
 method.N = 30;
-method.maxIter = 2;
-method.Nmin = 2;
+method.maxIter = 1;
+method.Nmin = 4;
 method.Nstep = 5;
 method.Nmax = 20;
 method.minUDegree = 2; %0: piecewise constant - 1: piecewise linear - 2: polynomial (control value for every collocation point)
@@ -18,7 +18,7 @@ method.err_treshold = 1.0e-8;
 method.err_priority_treshold = 1.0;
 %method.slack_performance_treshold = 1.0e30; method.slack_path_treshold = -1;
 %method.err_treshold = 1.0e-8; method.err_priority_treshold = 1.0e30;
-
+method.regularization_weight = 0*1.0e-8;
 method.save_plots = false;
 method.plot_name = "figs/poster/hairpin";
 method.og_plot_name = method.plot_name;
@@ -67,7 +67,7 @@ end
 % do the loop
 while ~converged && iterCount <= method.maxIter
     % solve ocp
-    res = solve_ocp(M, problem, M_previous, res_previous);
+    res = solve_ocp(M, problem, method, M_previous, res_previous);
     
     % store some intermediate results
     usedMeshes{end+1} = M;
@@ -85,9 +85,10 @@ while ~converged && iterCount <= method.maxIter
     end
     
     % update the mesh
-    %M_previous = M;
-    %res_previous = res;
+    M_previous = M;
+    res_previous = res;
     M = get_new_mesh(res, M, problem, method);
+    drawnow();
     iterCount = iterCount + 1;
     disp("-------- STARTING ITERATION "+num2str(iterCount)+" --------");
 end
