@@ -1,7 +1,7 @@
 function displayQualityMetrics(quality_metrics, save_plots, plot_name)
     f = figure(4); clf; f.Position = [1.02e+03,1.034e+02,500,300];
     
-    ylabels = {'$t_f$', '$geometric$ $difference$', '$log_{10}(\epsilon_{max})$', '$feasability$'};
+    ylabels = {'$t_f$', '$\# variables$', '$log_{10}(\epsilon_{max})$', '$feasability$', '$geometric$ $difference$'};
     quality_metrics(3,:) = log10(quality_metrics(3,:));
     for i = 1:4
         subplot(2,2,i);

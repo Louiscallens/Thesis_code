@@ -22,5 +22,5 @@ function displayTrajectoryX_intermediate(iter, M, opti, X, U, Yx, Yu, problem, s
     displayTrajectoryX(curr_res, M, problem, save_plots, plot_name);
     displayTrajectoryU(curr_res, M, problem, save_plots, plot_name);
     
-    %pause();
+    pause();
 end

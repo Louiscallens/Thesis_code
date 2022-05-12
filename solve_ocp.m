@@ -1,4 +1,4 @@
-function results = solve_ocp(M, problem, method, M_previous, res_previous)
+function results = solve_ocp(M, problem, problem_switch, method, M_previous, res_previous)
     opti = casadi.Opti();
         
     [X, U, Yx, Yu, U_comp] = create_opti_variables(opti, problem, M);
@@ -10,18 +10,18 @@ function results = solve_ocp(M, problem, method, M_previous, res_previous)
     if isempty(res_previous.X{1})
         opti = add_initial_initial_guess(opti, M, X, U_comp, problem);
     else
-        opti = add_initial_guess(opti, res_previous, M_previous, M, X, U_comp, problem);
+        opti = add_initial_guess(opti, res_previous, M_previous, M, X, U_comp, problem, problem_switch);
     end
     
     % solve OCP   
     
     options = struct('nlp_scaling_method','none','mumps_permuting_scaling',0,'mumps_scaling',0,'min_refinement_steps',5,'max_refinement_steps', 20);
     options.max_iter = 10000;
-    options.tol = 1.0e-7;
+    %options.tol = 1.0e-12;
     %opti.solver('sqpmethod', struct('expand', true, 'convexify_strategy', 'regularize', 'max_iter', 600, ...
     %    'qpsol', 'osqp', 'qpsol_options', struct('osqp', struct('eps_abs', 1.0e-9, 'eps_rel', 1.0e-9))));
     opti.solver('ipopt', struct('expand', true), options);
-    %opti.callback(@(i) displayTrajectoryX_intermediate(i, M, opti, X, U, Yx, Yu, problem, 100));
+    opti.callback(@(i) displayTrajectoryX_intermediate(i, M, opti, X, U, Yx, Yu, problem, 1));
     sol = opti.solve();
     %figure; spy(sol.value(jacobian(opti.f, opti.x)));
     
@@ -67,13 +67,18 @@ function [X, U, Yx, Yu, U_comp] = create_opti_variables(opti, problem, M)
 end
 function opti = add_initial_final_constraints(opti, problem, X)
     switch problem.problem_switch
-        case {0, 1, 2, 3, 4, 5, 7}
+        case {0, 1, 2, 3, 4, 5, 8, 9}
             opti.subject_to(X{1}(1:2,1) == problem.x0(1:2));
             opti.subject_to(X{1}(3,1) <= problem.x0(3));
             %opti.subject_to(X{end}(1) == problem.xf(1));
         case 6
             opti.subject_to(X{1}(:,1) == problem.x0);
             %opti.subject_to(X{end} == problem.xf);
+        case 7
+            opti.subject_to(X{1}(1:2,1) == problem.x0(1:2));
+            opti.subject_to(X{end}(1:2,1) == problem.xf(1:2));
+            opti.subject_to(X{1}(3,1) <= problem.x0(3));
+            opti.subject_to(X{end}(3,1) <= problem.xf(3));
         otherwise
             opti.subject_to(X{1}(:,1) == problem.x0);
             opti.subject_to(X{end}(:,1) == problem.xf);
@@ -81,7 +86,7 @@ function opti = add_initial_final_constraints(opti, problem, X)
 end
 function [opti, Yx, Yu] = add_path_constraints(opti, problem, M, X, U, Yx, Yu)
     switch problem.problem_switch
-        case {0, 1, 2, 3, 4, 5, 6, 7}
+        case {0, 1, 2, 3, 4, 5, 6, 8, 9}
             % loop over all intervals
             for k = 1:length(M.s)-1
                 get_states = @(s) LagrangePolynomialEval(M.sc{k}, [X{k}, X{k}(:,1)], s);
@@ -89,14 +94,15 @@ function [opti, Yx, Yu] = add_path_constraints(opti, problem, M, X, U, Yx, Yu)
                 
                 % apply constraints to collocation points
                 for j = 1:length(M.sc{k})-1
-                    x = get_states(M.sc{k}(j));
-                    u = get_inputs(M.sc{k}(j));
+                    %x = get_states(M.sc{k}(j));
+                    %u = get_inputs(M.sc{k}(j));
+                    x = X{k}(:,j); u = U{k}(:,j);
                     opti.subject_to(problem.min_accel.*problem.roll_off(u(2)) <= u(1) <= problem.max_accel.*problem.roll_off(u(2)));
                     opti.subject_to(-pi/4 <= u(2) <= pi/4);
-                    opti.subject_to(-problem.b <= x(1) <= problem.b);
+                    opti.subject_to(-problem.b(M.sc{k}(j)) <= x(1) <= problem.b(M.sc{k}(j)));
                     opti.subject_to(-pi/2 <= x(2) <= pi/2);
                     
-                    opti.subject_to(0 <= x(3) <= problem.max_v.*problem.roll_off(u(2)));
+                    opti.subject_to(2 <= x(3) <= problem.max_v.*problem.roll_off(u(2)));
                     %for t = 1:length(M.sc{k})-1
                     %    if t == j
                     %        uvals = get_inputs(M.sc{k}(t));
@@ -108,7 +114,7 @@ function [opti, Yx, Yu] = add_path_constraints(opti, problem, M, X, U, Yx, Yu)
                     Yu{k}(2,j) = problem.max_accel.*problem.roll_off(U{k}(2,j)) - U{k}(1,j);
                     Yu{k}(3,j) = U{k}(2,j) - -pi/4;
                     Yu{k}(4,j) = pi/4 - U{k}(2,j);
-                    Yx{k}(1,j) = problem.b - X{k}(1,j);     Yx{k}(2,j) = X{k}(1,j) - -problem.b;
+                    Yx{k}(1,j) = problem.b(M.sc{k}(j)) - X{k}(1,j);     Yx{k}(2,j) = X{k}(1,j) - -problem.b(M.sc{k}(j));
                     Yx{k}(3,j) = pi/2 - X{k}(2,j);          Yx{k}(4,j) = X{k}(2,j) - -pi/2;
                     Yx{k}(5,j) = X{k}(3,j);                 Yx{k}(6,j) = problem.max_v.*problem.roll_off(U{k}(2,j)) - X{k}(3,j);
                 end
@@ -122,23 +128,80 @@ function [opti, Yx, Yu] = add_path_constraints(opti, problem, M, X, U, Yx, Yu)
                     u = get_inputs(svalues(j));
                     opti.subject_to(problem.min_accel.*problem.roll_off(u(2)) <= u(1) <= problem.max_accel.*problem.roll_off(u(2)));
                     opti.subject_to(-pi/4 <= u(2) <= pi/4);
-                    opti.subject_to(-problem.b <= x(1) <= problem.b);
+                    opti.subject_to(-problem.b(svalues(j)) <= x(1) <= problem.b(svalues{k}(j)));
                     opti.subject_to(-pi/2 <= x(2) <= pi/2);
                     opti.subject_to(0 <= x(3) <= problem.max_v.*problem.roll_off(u(2)));
                 end
             end
             opti.subject_to(problem.min_accel.*problem.roll_off(U{end}(2,1)) <= U{end}(1,1) <= problem.max_accel.*problem.roll_off(U{end}(2,1)));
             opti.subject_to(-pi/4 <= U{end}(2,1) <= pi/4);
-            opti.subject_to(-problem.b <= X{end}(1,1) <= problem.b);
+            opti.subject_to(-problem.b(M.s(end)) <= X{end}(1,1) <= problem.b(M.s(end)));
             opti.subject_to(-pi/2 <= X{end}(2,1) <= pi/2);
             opti.subject_to(0 <= X{end}(3,1) <= problem.max_v.*problem.roll_off(U{end}(2,1)));
             Yu{end}(1,end) = U{end}(1,1) - problem.min_accel.*problem.roll_off(U{end}(2,1));
             Yu{end}(2,end) = problem.max_accel.*problem.roll_off(U{end}(2,1)) - U{end}(1,1);
             Yu{end}(3,end) = U{end}(2,1) - -pi/4;
             Yu{end}(4,end) = pi/4 - U{end}(2,1);
-            Yx{end}(1,end) = problem.b - X{end}(1,end); Yx{end}(2,end) = X{end}(1,end) - -problem.b;
+            Yx{end}(1,end) = problem.b(M.s(end)) - X{end}(1,end); Yx{end}(2,end) = X{end}(1,end) - -problem.b(M.s(end));
             Yx{end}(3,end) = pi/2 - X{end}(2,end);      Yx{end}(4,end) = X{end}(2,end) - -pi/2;
             Yx{end}(5,end) = X{end}(3,end);             Yx{end}(6,end) = problem.max_v.*problem.roll_off(U{end}(2,end)) - X{end}(3,end);
+            
+        case 7
+            tol = 1.0e-7;
+            
+            % loop over all intervals
+            for k = 1:length(M.s)-1
+                get_states = @(s) LagrangePolynomialEval(M.sc{k}, [X{k}, X{k}(:,1)], s);
+                get_inputs = @(s) linInterpol(M.sc{k}, [U{k}, U{k+1}(:,1)], s);
+                
+                % apply constraints to collocation points
+                for j = 1:length(M.sc{k})-1
+                    %x = get_states(M.sc{k}(j));
+                    %u = get_inputs(M.sc{k}(j));
+                    x = X{k}(:,j); u = U{k}(:,j);
+                    opti.subject_to(problem.min_accel <= u(1) <= problem.max_accel);
+                    %opti.subject_to(-tol <= u(2) <= tol);
+                    opti.subject_to(-problem.b(M.sc{k}(j)) <= x(1) <= problem.b(M.sc{k}(j)));
+                    opti.subject_to(-pi/2 <= x(2) <= pi/2);
+                    
+                    opti.subject_to(2 <= x(3) <= problem.max_v);
+                    %for t = 1:length(M.sc{k})-1
+                    %    if t == j
+                    %        uvals = get_inputs(M.sc{k}(t));
+                    %        opti.subject_to(0 <= x(3) <= problem.max_v.*problem.roll_off(uvals(2)));
+                    %    end
+                    %end
+                    
+                    Yu{k}(1,j) = U{k}(1,j) - problem.min_accel;
+                    Yu{k}(2,j) = problem.max_accel - U{k}(1,j);
+                    Yx{k}(1,j) = problem.b(M.sc{k}(j)) - X{k}(1,j);     Yx{k}(2,j) = X{k}(1,j) - -problem.b(M.sc{k}(j));
+                    Yx{k}(3,j) = pi/2 - X{k}(2,j);          Yx{k}(4,j) = X{k}(2,j) - -pi/2;
+                    Yx{k}(5,j) = X{k}(3,j);                 Yx{k}(6,j) = problem.max_v - X{k}(3,j);
+                end
+                
+                % apply constraints to linearly spaced points in the
+                % interval
+                Nb_extra_constraint_pts = 0;
+                svalues = linspace(M.s(k), M.s(k+1), 2+Nb_extra_constraint_pts);
+                for j = 2:length(svalues)-1
+                    x = get_states(svalues(j));
+                    u = get_inputs(svalues(j));
+                    opti.subject_to(problem.min_accel <= u(1) <= problem.max_accel);
+                    opti.subject_to(-problem.b(svalues(j)) <= x(1) <= problem.b(svalues(j)));
+                    opti.subject_to(-pi/2 <= x(2) <= pi/2);
+                    opti.subject_to(0 <= x(3) <= problem.max_v);
+                end
+            end
+            opti.subject_to(problem.min_accel <= U{end}(1,1) <= problem.max_accel);
+            opti.subject_to(-problem.b(M.s(end)) <= X{end}(1,1) <= problem.b(M.s(end)));
+            opti.subject_to(-pi/2 <= X{end}(2,1) <= pi/2);
+            opti.subject_to(0 <= X{end}(3,1) <= problem.max_v);
+            Yu{end}(1,end) = U{end}(1,1) - problem.min_accel;
+            Yu{end}(2,end) = problem.max_accel - U{end}(1,1);
+            Yx{end}(1,end) = problem.b(M.s(end)) - X{end}(1,end); Yx{end}(2,end) = X{end}(1,end) - -problem.b(M.s(end));
+            Yx{end}(3,end) = pi/2 - X{end}(2,end);      Yx{end}(4,end) = X{end}(2,end) - -pi/2;
+            Yx{end}(5,end) = X{end}(3,end);             Yx{end}(6,end) = problem.max_v - X{end}(3,end);
+            
             
         otherwise
             u = [U{:}];            
@@ -169,6 +232,8 @@ function opti = add_coll_constraints(opti, problem, M, X, U)
             %opti.subject_to(dot_Pi(xvalues, tau(j+1)) == problem.rhs(xvalues(:,j+1), uvalues(:,j+1), tau(j+1))); % backward collocation
         end
     end
+    % apply collocation constraint to final point as well
+	%opti.subject_to(dot_Pi(xvalues, tau(end)) == problem.rhs(X{end}(:,1), uvalues(:,end), tau(end)));
 end
 function opti = add_objective(opti, method, problem, M, X, U)
     switch problem.problem_switch
@@ -217,8 +282,8 @@ function opti = add_objective(opti, method, problem, M, X, U)
 end
 function opti = add_initial_initial_guess(opti, M, X, U_comp, problem)
     switch problem.problem_switch
-        case {0, 1, 2, 3, 4, 5, 6, 7}
-            initial_velocity = 1;
+        case {0, 1, 2, 3, 4, 5, 6, 8, 9}
+            initial_velocity = 2;
             x = [X{:}];
             opti.set_initial(x(1,:), 0);
             opti.set_initial(x(2,:), 0);
@@ -236,15 +301,16 @@ function opti = add_initial_initial_guess(opti, M, X, U_comp, problem)
             end
             
         case 7
+            initial_velocity = 2;
             x = [X{:}];
             opti.set_initial(x(1,:), 0);
             opti.set_initial(x(2,:), 0);
+            opti.set_initial(x(3,:), initial_velocity);
 
             for k = 1:length(M.s)-1
-                for j = 1:size(U{k},2)
-                    scurr = M.sc{k}(j);
-                    opti.set_initial(U{k}(1,j), atan(1/problem.myTrack.evaluate_radius_curvature(scurr)));
-                end
+                uvals = atan(1./problem.myTrack.evaluate_radius_curvature(M.sc{k}(1:end-1)));
+                
+                opti.set_initial(U_comp{1}{k}, 0);
             end
         case 8
             x = [X{:}];
@@ -260,13 +326,15 @@ function opti = add_initial_initial_guess(opti, M, X, U_comp, problem)
             end
     end 
 end
-function opti = add_initial_guess(opti, res_previous, M_previous, M, X, U_comp, problem)
+function opti = add_initial_guess(opti, res_previous, M_previous, M, X, U_comp, problem, problem_switch)
     Xinit = new_mesh_evaluateX(res_previous.X, M_previous, M);
     for i = 1:length(Xinit)
         opti.set_initial(X{i}, Xinit{i});
     end
         
-    Uinit = new_mesh_evaluateU(res_previous.U, M_previous, M);
+    Uinit = new_mesh_evaluateU(res_previous.U, M_previous, M, problem_switch);
+    % for case 6 (zoomed chicane), this will fail because the structure of
+    % U has changed
     for n = 1:length(U_comp)
         for i = 1:length(Uinit{n})-1
             opti.set_initial(U_comp{n}{i}, Uinit{n}{i});

@@ -1,6 +1,10 @@
 function displayTrajectoryU(res, M, problem, save_plots, plot_name)
        
     [tvalues, uvalues, tVars, uVars] = get_uvalues(res, M);
+    if size(uVars,1) == 1
+        uVars(2,:) = zeros(size(uVars(1,:)));
+        uvalues(2,:) = zeros(size(uvalues(1,:)));
+    end
     
     f = figure(3); clf; f.Position = [536.2000  467.4000  500.0000  300.0000];
     subplot(211);

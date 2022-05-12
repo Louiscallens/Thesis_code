@@ -2,22 +2,28 @@ import casadi.*
 set(groot, 'defaultAxesTickLabelInterpreter','latex'); set(groot, 'defaultLegendInterpreter','latex');
 
 %% set up the problem
-problem_switch = 4; % 0: chicane - 1: smooth sine - 2: hairpin - 3: generic - 4: smooth hairpin - 5: circle - 6: zoomed chicane - 7: straight line
+% 0: chicane - 1: smooth sine - 2: hairpin - 3: generic - 4: smooth hairpin - 5: circle - 6: zoomed chicane - 7: straight line
+% 8: corner-cutting track - 9: smooth controls necessity
+problem_switch = 8;
 problem = setup_problem(problem_switch);
 
 %% specify method parameters
-method.N = 30;
+method.method_select = 1; % 0: slackness-based method - 1: basic hp (patterson)
+method.N = 8;
 method.maxIter = 1;
-method.Nmin = 4;
+method.Nmin = 6;
 method.Nstep = 5;
 method.Nmax = 20;
-method.minUDegree = 2; %0: piecewise constant - 1: piecewise linear - 2: polynomial (control value for every collocation point)
-method.slack_performance_treshold = 1.0e-2;%1.0e-2;
-method.slack_path_treshold = 1.0e-10;%1.0e-2;
-method.err_treshold = 1.0e-8;
-method.err_priority_treshold = 1.0;
-%method.slack_performance_treshold = 1.0e30; method.slack_path_treshold = -1;
-%method.err_treshold = 1.0e-8; method.err_priority_treshold = 1.0e30;
+method.minUDegree = 0 + 2*method.method_select; %0: piecewise constant - 1: piecewise linear - 2: polynomial (control value for every collocation point)
+if method.method_select == 0
+    method.slack_performance_treshold = 1.0e-2;%1.0e-2;
+    method.slack_path_treshold = 1.0e-10;%1.0e-2;
+    method.err_treshold = 1.0e-8;
+    method.err_priority_treshold = 1.0;
+else
+    method.slack_performance_treshold = 1.0e30; method.slack_path_treshold = -1;
+    method.err_treshold = 1.0e-8; method.err_priority_treshold = 1.0e30;
+end
 method.regularization_weight = 0*1.0e-8;
 method.save_plots = false;
 method.plot_name = "figs/poster/hairpin";
@@ -67,7 +73,7 @@ end
 % do the loop
 while ~converged && iterCount <= method.maxIter
     % solve ocp
-    res = solve_ocp(M, problem, method, M_previous, res_previous);
+    res = solve_ocp(M, problem, problem_switch, method, M_previous, res_previous);
     
     % store some intermediate results
     usedMeshes{end+1} = M;

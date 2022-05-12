@@ -24,6 +24,10 @@ function displayTrajectoryX(res, M, problem, save_plots, plot_name)
     end
     
     [tvalues_u, uvalues, tVars, uVars] = get_uvalues(res, M);
+    if size(uVars,1) == 1
+        uVars(2,:) = zeros(size(uVars(1,:)));
+        uvalues(2,:) = zeros(size(uvalues(1,:)));
+    end
     
     f = figure(1); clf; f.Position = [25.0000  464.2000  500.0000  300.0000];
     for i = 1:problem.nx
@@ -35,8 +39,8 @@ function displayTrajectoryX(res, M, problem, save_plots, plot_name)
         ylabel("$x_"+num2str(i)+"$", 'interpreter', 'latex');
         xlim([res.t(1), res.t(end)]);
         if i == 1
-            plot(tvalues,  problem.b.*ones(size(tvalues)), '-r', 'linewidth', 1);
-            plot(tvalues, -problem.b.*ones(size(tvalues)), '-r', 'linewidth', 1);
+            plot(tvalues,  problem.b(tvalues), '-r', 'linewidth', 1);
+            plot(tvalues, -problem.b(tvalues), '-r', 'linewidth', 1);
         elseif i == 3
             plot(tVars, problem.max_v.*problem.roll_off(uVars(2,:)), '.r');
             plot(tvalues_u, problem.max_v.*problem.roll_off(uvalues(2,:)), '-r', 'linewidth', 1);
@@ -54,11 +58,14 @@ function displayTrajectoryX(res, M, problem, save_plots, plot_name)
     
     y = [res.X{:}];
     f = figure(2); clf; f.Position = [1041,4.698e+02,500,3e+02];
+    fine_svalues = linspace(0, M.s(end), 1000);
+    fine_angles = problem.myTrack.evaluate_angle(fine_svalues);
     angles = problem.myTrack.evaluate_angle(svalues);
+    [fine_Xs, fine_Ys] = problem.myTrack.evaluate_track_param(fine_svalues);
     [Xs, Ys] = problem.myTrack.evaluate_track_param(svalues);
-    plot(Xs, Ys, '--k'); hold on; %center-line
-    plot(Xs-problem.b.*sin(angles), Ys+problem.b.*cos(angles), '-k', 'linewidth', 1); % left bound
-    plot(Xs+problem.b.*sin(angles), Ys-problem.b.*cos(angles), '-k', 'linewidth', 1); % right bound
+    plot(fine_Xs, fine_Ys, '--k'); hold on; %center-line
+    plot(fine_Xs-problem.b(fine_svalues).*sin(fine_angles), fine_Ys+problem.b(fine_svalues).*cos(fine_angles), '-k', 'linewidth', 1); % left bound
+    plot(fine_Xs+problem.b(fine_svalues).*sin(fine_angles), fine_Ys-problem.b(fine_svalues).*cos(fine_angles), '-k', 'linewidth', 1); % right bound
     plot(Xs - y(1,:).*sin(angles), Ys + y(1,:).*cos(angles), '.-r', 'linewidth', 1);
     
     y1 = xvaluesfirst;

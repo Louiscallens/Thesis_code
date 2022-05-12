@@ -75,6 +75,7 @@ function Mnew = get_new_mesh(res, M, problem, method, save_plots, plot_name)
             
             % prevent masking effect ! knew is alreay updated, so we use
             % the old value !
+            %{
             curr_active = active_perf_const(:,k);
             if ~(curr_active(1) || curr_active(2)) % first control input is not limited
                 Mnew.Nu(1,knew-1) = min(2, M.Nu(1,k)+1);
@@ -85,6 +86,7 @@ function Mnew = get_new_mesh(res, M, problem, method, save_plots, plot_name)
                 Mnew.Nu(2,knew-1) = min(2, M.Nu(2,k)+1);
                 %disp("incraesing polynomial order of u2");
             end
+            %}
         end
     end
     

@@ -24,9 +24,12 @@ function [metric, specifics] = get_quality_metric(res, M, rhs, problem, method)
     % feasability of path constraints
     feas = get_feas_metric(res, M, problem);
     %disp("feas = "+num2str(feas));
+
+    % number of optimization variables
+    nbVars = count_nb_vars(M, problem);
     
     metric = obj + geom_diff + err + feas;
-    specifics = [obj; geom_diff; err; feas; obj_ref];
+    specifics = [obj; nbVars; err; feas; obj_ref; geom_diff];
 end
 
 function diff = get_geometric_diff(res, M, res_ref, M_ref, problem)
@@ -36,13 +39,31 @@ end
 function feas = get_feas_metric(res, M, problem)
     feas = 0;
 
-    svalues = linspace(-1,1,1000);
+    %svalues = linspace(-1,1,1000);
+    svalues = linspace(0, M.s(end), 1000);
     x = evaluate_trajectory(res, M, svalues);
     x1 = x(1,:);
     
     for i = 1:length(svalues)
-        if abs(x1(i)) > problem.b
-            feas = feas + abs(x1(i)) - problem.b;
+        if abs(x1(i)) > problem.b(svalues(i))
+            feas = feas + abs(x1(i)) - problem.b(svalues(i));
+        end
+    end
+end
+
+function nbVars = count_nb_vars(M, problem)
+    nbVars = 0;
+    for k = 1:length(M.s)-1
+        % count nb state vars
+        nbVars = nbVars + M.Nk(k)*problem.nx;
+        
+        % count nb of control vars
+        for n = 1:problem.nu
+            if M.Nu(n,k) == 0 || M.Nu(n,k) == 1
+                nbVars = nbVars + 1;
+            else
+                nbVars = nbVars + M.Nk(k);
+            end
         end
     end
 end
