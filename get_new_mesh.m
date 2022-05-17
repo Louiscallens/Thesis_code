@@ -1,4 +1,4 @@
-function Mnew = get_new_mesh(res, M, problem, method, save_plots, plot_name)
+function Mnew = get_new_mesh(res, M, errs, problem, method, save_plots, plot_name)
 % define a new mesh based on specific rules to decide when to increase the
 % order of the polynomial or when to split an interval    
     Nb_inter = length(M.s)-1;
@@ -39,13 +39,13 @@ function Mnew = get_new_mesh(res, M, problem, method, save_plots, plot_name)
     for k = 1:Nb_inter
         % treat very innacurate intervals first
         if ismember(k, priority_increase)
-            if M.Nk(k) + method.Nstep <= method.Nmax
-                [M, Mnew, knew] = increase_nb_coll_pts(M, Mnew, k, knew, method);
+            %if M.Nk(k) + method.Nstep <= method.Nmax
+                [M, Mnew, knew] = increase_nb_coll_pts(M, Mnew, k, knew, method, errs(k));
                 increased_x = [increased_x, k];
-            else
-                [M, Mnew, knew] = split_interval(M, Mnew, k, knew, method);
-                splitted = [splitted, k];
-            end
+            %else
+            %    [M, Mnew, knew] = split_interval(M, Mnew, k, knew, 2, method);
+            %    splitted = [splitted, k];
+            %end
             
         % split intervals where no constraint is active
         elseif ismember(k, to_split)
@@ -54,20 +54,20 @@ function Mnew = get_new_mesh(res, M, problem, method, save_plots, plot_name)
                 [M, Mnew, knew] = increase_polynomial_order(M, Mnew, k, knew, method);
                 increased_u = [increased_u, k];
             else
-                [M, Mnew, knew] = split_interval(M, Mnew, k, knew, method);
+                [M, Mnew, knew] = split_interval(M, Mnew, k, knew, 2, method);
                 splitted = [splitted, k];
             end
             
         % treat those intervals that should increase their number of
         % collocation points
         elseif ismember(k, to_increase)
-            if M.Nk(k) + method.Nstep <= method.Nmax
-                [M, Mnew, knew] = increase_nb_coll_pts(M, Mnew, k, knew, method);
+            %if M.Nk(k) + method.Nstep <= method.Nmax
+                [M, Mnew, knew] = increase_nb_coll_pts(M, Mnew, k, knew, method, errs(k));
                 increased_x = [increased_x, k];
-            else
-                [M, Mnew, knew] = split_interval(M, Mnew, k, knew, method);
-                splitted = [splitted, k];
-            end
+            %else
+            %    [M, Mnew, knew] = split_interval(M, Mnew, k, knew, 2, method);
+            %    splitted = [splitted, k];
+            %end
         
         else
             % copy the interval
@@ -75,16 +75,19 @@ function Mnew = get_new_mesh(res, M, problem, method, save_plots, plot_name)
             
             % prevent masking effect ! knew is alreay updated, so we use
             % the old value !
-            %{
+            
             curr_active = active_perf_const(:,k);
             if ~(curr_active(1) || curr_active(2)) % first control input is not limited
                 Mnew.Nu(1,knew-1) = min(2, M.Nu(1,k)+1);
                 %disp("incraesing polynomial order of u1");
             end
+            try
             if ~(curr_active(3) || curr_active(4)) % second control input is not limited
                 % increase polynomial order of second control input
                 Mnew.Nu(2,knew-1) = min(2, M.Nu(2,k)+1);
                 %disp("incraesing polynomial order of u2");
+            end
+            catch
             end
             %}
         end
@@ -102,8 +105,8 @@ function [M, Mnew, knew] = increase_polynomial_order(M, Mnew, k, knew, method)
     Mnew.Nu(:,knew) = M.Nu(:,k)+1;
     knew = knew + 1;
 end
-function [M, Mnew, knew] = split_interval(M, Mnew, k, knew, method)
-    Bk = max(2, ceil(M.Nk(k)/method.Nmin));
+function [M, Mnew, knew] = split_interval(M, Mnew, k, knew, Bk, method)
+    %Bk = max(2, ceil(M.Nk(k)/method.Nmin));
     ds = (M.s(k+1)-M.s(k))/Bk;
     %if ds < 2.0
     %    [M, Mnew, knew] = copy_interval(M, Mnew, k, knew, method);
@@ -116,11 +119,18 @@ function [M, Mnew, knew] = split_interval(M, Mnew, k, knew, method)
     end
     knew = knew + Bk;
 end
-function [M, Mnew, knew] = increase_nb_coll_pts(M, Mnew, k, knew, method)
-    Mnew.Nk(knew) = M.Nk(k) + method.Nstep;
-    Mnew.s(knew) = M.s(k);
-    Mnew.Nu(:,knew) = M.Nu(:,k);
-    knew = knew + 1;
+function [M, Mnew, knew] = increase_nb_coll_pts(M, Mnew, k, knew, method, err)
+    NkNew = M.Nk(k) + ceil(log(err/method.err_treshold)/log(M.Nk(k)));
+    if NkNew > method.Nmax
+        Bk = max(2, ceil(NkNew/method.Nmin));
+        [M, Mnew, knew] = split_interval(M, Mnew, k, knew, Bk, method);
+    else
+        %Mnew.Nk(knew) = M.Nk(k) + method.Nstep;
+        Mnew.Nk(knew) = NkNew;
+        Mnew.s(knew) = M.s(k);
+        Mnew.Nu(:,knew) = M.Nu(:,k);
+        knew = knew + 1;
+    end
 end
 function [M, Mnew, knew] = copy_interval(M, Mnew, k, knew, method)
     Mnew.Nk(knew) = M.Nk(k);

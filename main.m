@@ -4,27 +4,32 @@ set(groot, 'defaultAxesTickLabelInterpreter','latex'); set(groot, 'defaultLegend
 %% set up the problem
 % 0: chicane - 1: smooth sine - 2: hairpin - 3: generic - 4: smooth hairpin - 5: circle - 6: zoomed chicane - 7: straight line
 % 8: corner-cutting track - 9: smooth controls necessity
-problem_switch = 8;
+problem_switch = 0;
 problem = setup_problem(problem_switch);
 
 %% specify method parameters
 method.method_select = 1; % 0: slackness-based method - 1: basic hp (patterson)
-method.N = 8;
-method.maxIter = 1;
-method.Nmin = 6;
-method.Nstep = 5;
-method.Nmax = 20;
+method.N = 20;
+method.maxIter = 6;
+method.Nmin = 3;
+method.Nstep = 3;
+method.Nmax = 6;
 method.minUDegree = 0 + 2*method.method_select; %0: piecewise constant - 1: piecewise linear - 2: polynomial (control value for every collocation point)
 if method.method_select == 0
     method.slack_performance_treshold = 1.0e-2;%1.0e-2;
     method.slack_path_treshold = 1.0e-10;%1.0e-2;
-    method.err_treshold = 1.0e-8;
+    method.err_treshold = 1.0e-4;
     method.err_priority_treshold = 1.0;
 else
     method.slack_performance_treshold = 1.0e30; method.slack_path_treshold = -1;
-    method.err_treshold = 1.0e-8; method.err_priority_treshold = 1.0e30;
+    method.err_treshold = 1.0e-4; method.err_priority_treshold = 1.0e5;
 end
+method.use_viol_vars = true || method.method_select;
+method.viol_cost_weight = method.use_viol_vars*1.0e10;
 method.regularization_weight = 0*1.0e-8;
+
+method.use_warm_start = false;
+
 method.save_plots = false;
 method.plot_name = "figs/poster/hairpin";
 method.og_plot_name = method.plot_name;
@@ -91,9 +96,12 @@ while ~converged && iterCount <= method.maxIter
     end
     
     % update the mesh
-    M_previous = M;
-    res_previous = res;
-    M = get_new_mesh(res, M, problem, method);
+    if method.use_warm_start
+        M_previous = M;
+        res_previous = res;
+    end
+    [~, errs] = get_error_est(res, M, problem.rhs, method, problem.disconts);
+    M = get_new_mesh(res, M, errs, problem, method);
     drawnow();
     iterCount = iterCount + 1;
     disp("-------- STARTING ITERATION "+num2str(iterCount)+" --------");
