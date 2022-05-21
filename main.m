@@ -4,11 +4,11 @@ set(groot, 'defaultAxesTickLabelInterpreter','latex'); set(groot, 'defaultLegend
 %% set up the problem
 % 0: chicane - 1: smooth sine - 2: hairpin - 3: generic - 4: smooth hairpin - 5: circle - 6: zoomed chicane - 7: straight line
 % 8: corner-cutting track - 9: smooth controls necessity
-problem_switch = 9;
+problem_switch = 0;
 problem = setup_problem(problem_switch);
 
 %% specify method parameters
-method.method_select = 1; % 0: slackness-based method - 1: basic hp (patterson)
+method.method_select = 0; % 0: slackness-based method - 1: basic hp (patterson)
 method.N = 15;
 method.maxIter = 5;
 method.Nmin = 3;
@@ -17,8 +17,10 @@ method.Nmax = 8;
 method.minUDegree = 0 + 2*method.method_select; %0: piecewise constant - 1: piecewise linear - 2: polynomial (control value for every collocation point)
 if method.method_select == 0
     method.slack_performance_treshold = 1.0e-2;%1.0e-2;
-    method.slack_path_treshold = 0.5;%1.0e-1;%1.0e-2;
-    method.err_treshold = 1.0e-1; %1.0e-4;
+    %method.slack_path_treshold = 0.5;%1.0e-1;%1.0e-2;
+    method.slack_path_treshold = 1.0e-2;%1.0e-1;%1.0e-2;
+    %method.err_treshold = 1.0e-1; %1.0e-4;
+    method.err_treshold = 1.0e-4; %1.0e-4;
     method.err_priority_treshold = 1.0;
 else
     method.slack_performance_treshold = 1.0e30; method.slack_path_treshold = -1;
