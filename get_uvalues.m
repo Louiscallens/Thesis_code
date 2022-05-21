@@ -3,8 +3,8 @@ function [tvalues, uvalues, tVars, uVars] = get_uvalues(res, M)
     
     tvalues = [];
     uvalues = [];
-    tVars = 0;
-    uVars = res.U{1}(:,1);
+    tVars = [];
+    uVars = [];%res.U{1}(:,1);
     for k = 1:length(res.U)-1
         %{
         if M.Nu(k) == 0
@@ -28,11 +28,23 @@ function [tvalues, uvalues, tVars, uVars] = get_uvalues(res, M)
             else
                 uvalues = [uvalues, res.U{k}];
                 tvalues = [tvalues, res.tc{k}(1:end-1)];
-                tVars = [tVars, res.tc{k}(1:end-1)];
-                uVars = [uVars, res.U{k}];
+                %tVars = [tVars, res.tc{k}(1:end-1)];
+                %uVars = [uVars, res.U{k}];
+                u_to_add = [];
+                for n = 1:size(res.U{1},1)
+                    if M.Nu(n,k) == 0
+                        u_to_add = [u_to_add; res.U{k}(n,end)];
+                    else
+                        u_to_add = [u_to_add; res.U{k+1}(n,1)];
+                    end
+                end
+                uVars = [uVars, res.U{k}, u_to_add];
+                tVars = [tVars, res.tc{k}];
             end
         %end
     end
     uvalues = [uvalues, res.U{end}];
     tvalues = [tvalues, res.t(end)];
+    tVars = [tVars, res.t(end)];
+    uVars = [uVars, res.U{end}];
 end

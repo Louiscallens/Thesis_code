@@ -120,7 +120,9 @@ function problem = setup_problem(problem_switch)
     problem.tf = myTrack.total_length;
     problem.b = @(s) 4;
     problem.max_accel = 20; problem.min_accel = -5;
-    problem.roll_off = @(x) exp(-100.*x.^2);
+    %problem.roll_off = @(x) exp(-100.*x.^2);
+    %problem.roll_off = @(x) exp(-10.*x.^2);
+    problem.roll_off = @(x) exp(-10.*x.^2).^4;
     problem.max_v = 75;
     problem.scale = problem.myTrack.total_length;
     problem.problem_switch = problem_switch;
@@ -132,7 +134,7 @@ function problem = setup_problem(problem_switch)
         problem.xf = res.X{N_end}(:,1);
         problem.N_first = N_first; problem.N_end = N_end;
     elseif problem_switch == 7
-        problem.roll_off = @(x) 1;
+        problem.roll_off = @(x) ones(size(x));
         problem.max_v = 150;
         problem.xf = [0; 0; 10];
         problem.x0 = [0; 0; 10];
@@ -142,7 +144,9 @@ function problem = setup_problem(problem_switch)
         problem.nu = 1;
         problem.nx = 3;
     elseif problem_switch == 8
-        problem.b = @(s) 0.5 + sqrt(abs(s-15));
+        %problem.b = @(s) 0.5 + sqrt(abs(s-15));
+        %problem.b = @(s) 0.2 + 0.3.*abs(s-15);
+        problem.b = @(s) 4 - 3.*exp(-1.*(s-15).^2);
     elseif problem_switch == 9
         problem.max_v = 20;
         problem.b = @(s) 4;

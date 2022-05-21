@@ -1,10 +1,11 @@
-function displayQualityMetrics(quality_metrics, save_plots, plot_name)
+function displayQualityMetrics7(quality_metrics, save_plots, plot_name)
     f = figure(4); clf; f.Position = [1.02e+03,1.034e+02,500,300];
     
     ylabels = {'$t_f$', '$\# variables$', '$log_{10}(\epsilon_{max})$', '$feasability$', '$geometric$ $difference$'};
     quality_metrics(3,:) = log10(quality_metrics(3,:));
-    for i = 1:min(length(ylabels), 4)
-        subplot(2,2,i);
+    i = 1;
+    %for i = 1:length(ylabels)
+    %    subplot(2,2,i);
         plot(quality_metrics(i,:), '.-b'); hold on              ;
         xlabel('$iteration$', 'interpreter', 'latex');
         ylabel(ylabels{i}, 'interpreter', 'latex');
@@ -13,7 +14,7 @@ function displayQualityMetrics(quality_metrics, save_plots, plot_name)
         %if i == 1
         %    plot(quality_metrics(end,:), '-r', 'linewidth', 1);
         %end
-    end
+    %end
     
     if save_plots
         saveas(gca, plot_name+"_quality_metrics.eps", 'epsc');

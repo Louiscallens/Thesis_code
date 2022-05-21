@@ -30,20 +30,21 @@ function displayTrajectoryX(res, M, problem, save_plots, plot_name)
     end
     
     f = figure(1); clf; f.Position = [25.0000  464.2000  500.0000  300.0000];
+    ylabels = {'$e(t)$', '$\psi(t)$', 'v(t)'};
     for i = 1:problem.nx
         subplot(problem.nx, 1, i);
         plot(tvalues, xvalues(i,:), '.-', 'linewidth', 1); hold on;
         plot(res.t, xvaluesfirst(i,:), '.k', 'linewidth', 1);
         xline(res.t, ':', 'color', [0.5, 0.5, 0.5]);
         xlabel('$t$', 'interpreter', 'latex');
-        ylabel("$x_"+num2str(i)+"$", 'interpreter', 'latex');
+        ylabel(ylabels{i}, 'interpreter', 'latex');
         xlim([res.t(1), res.t(end)]);
         if i == 1
             plot(tvalues,  problem.b(tvalues), '-r', 'linewidth', 1);
             plot(tvalues, -problem.b(tvalues), '-r', 'linewidth', 1);
         elseif i == 3
-            plot(tVars, problem.max_v.*problem.roll_off(uVars(2,:)), '.r');
-            plot(tvalues_u, problem.max_v.*problem.roll_off(uvalues(2,:)), '-r', 'linewidth', 1);
+            plot(tVars, problem.max_v.*problem.roll_off(uVars(2,:)), '.-r', 'linewidth', 1);
+            %plot(tvalues_u, problem.max_v.*problem.roll_off(uvalues(2,:)), '-r', 'linewidth', 1);
         end
     end
     
@@ -82,5 +83,14 @@ function displayTrajectoryX(res, M, problem, save_plots, plot_name)
         saveas(gca, plot_name+"_trajX.fig", 'fig');
         saveas(gca, plot_name+"_trajX.png", 'png');
     end
+    
+    %xlim([8, 17]);
+    %ylim([3.5, 10]);
+    
+    %if save_plots
+    %    saveas(gca, plot_name+"_trajX_zoomed.eps", 'epsc');
+    %    saveas(gca, plot_name+"_trajX_zoomed.fig", 'fig');
+    %    saveas(gca, plot_name+"_trajX_zoomed.png", 'png');
+    %end
     
 end

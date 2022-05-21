@@ -15,14 +15,22 @@ function results = solve_ocp(M, problem, problem_switch, method, M_previous, res
     
     % solve OCP   
     
-    options = struct('nlp_scaling_method','none','mumps_permuting_scaling',0,'mumps_scaling',0,'min_refinement_steps',5,'max_refinement_steps', 20);
+    options = struct('nlp_scaling_method','none','mumps_permuting_scaling',0,'mumps_scaling',0,'min_refinement_steps',5,'max_refinement_steps', 100);
     options.max_iter = 10000;
     %options.tol = 1.0e-12;
     %opti.solver('sqpmethod', struct('expand', true, 'convexify_strategy', 'regularize', 'max_iter', 600, ...
     %    'qpsol', 'osqp', 'qpsol_options', struct('osqp', struct('eps_abs', 1.0e-9, 'eps_rel', 1.0e-9))));
+    
+    %options = struct('nlp_scaling_method','none','linear_solver', 'ma86', 'min_refinement_steps',5,'max_refinement_steps', 100);
+    
     opti.solver('ipopt', struct('expand', true), options);
     %opti.callback(@(i) displayTrajectoryX_intermediate(i, M, opti, X, U, Yx, Yu, problem, 50));
-    sol = opti.solve();
+    global regularization
+    try
+        sol = opti.solve();
+    catch
+        sol = opti.debug();
+    end
     %figure; spy(sol.value(jacobian(opti.f, opti.x)));
     
     results = construct_result(sol, X, U, Yx, Yu, M, problem);
@@ -102,12 +110,12 @@ function [opti, Yx, Yu] = add_path_constraints(opti, problem, method, M, X, U, Y
                     x = X{k}(:,j); u = U{k}(:,j);
                     if method.use_viol_vars
                         v = V{k}(:,j);
-                        opti.subject_to(problem.min_accel.*problem.roll_off(u(2)) - v(problem.nx + 1) <= u(1) <= problem.max_accel.*problem.roll_off(u(2)) + v(problem.nx + 1));
-                        opti.subject_to(2 <= x(3) <= problem.max_v.*problem.roll_off(u(2)) + v(problem.nx + 2));
-                        opti.subject_to(0 <= v);
+                        opti.subject_to(problem.min_accel.*problem.roll_off(u(2)) - v(problem.nx + 1).^2 <= u(1) <= problem.max_accel.*problem.roll_off(u(2)) + v(problem.nx + 1).^2);
+                        opti.subject_to(2 <= x(3) <= problem.max_v.*problem.roll_off(u(2)) + v(problem.nx + 2).^2);
+                        %opti.subject_to(0 <= v);
                     else
                         opti.subject_to(problem.min_accel.*problem.roll_off(u(2)) <= u(1) <= problem.max_accel.*problem.roll_off(u(2)));
-                        opti.subject_to(2 <= x(3) <= problem.max_v.*problem.roll_off(u(2)));
+                        opti.subject_to(2 <= x(3) <= 2.1+problem.max_v.*problem.roll_off(u(2)));
                     end
                     opti.subject_to(-pi/4 <= u(2) <= pi/4);
                     opti.subject_to(-problem.b(M.sc{k}(j)) <= x(1) <= problem.b(M.sc{k}(j)));
@@ -249,6 +257,7 @@ function opti = add_coll_constraints(opti, problem, method, M, X, U, V)
 	%opti.subject_to(dot_Pi(xvalues, tau(end)) == problem.rhs(X{end}(:,1), uvalues(:,end), tau(end)));
 end
 function opti = add_objective(opti, method, problem, M, X, U, V)
+    global regularization
     switch problem.problem_switch
         otherwise
             int_approx = 0;
@@ -268,8 +277,15 @@ function opti = add_objective(opti, method, problem, M, X, U, V)
                 % add regulirization
                 %regularization = regularization + sumsqr(U{i} - mean(U{i},2)); % penalize difference from mean in this control interval
                 for n = 1:problem.nu
-                    regularization = regularization + sumsqr(U{i}(n,2:end) - (U{i}(n,1) + (M.sc{i}(2:end-1)-M.s(i))./(M.s(i+1)-M.s(i)).*(U{i+1}(n,1)-U{i}(n,1)))); % penalize difference from linear control in this interval
+                    if M.Nu(n,i) ~= 0
+                        regularization = regularization + sumsqr(...
+                                (U{i}(n,2:end) - (U{i}(n,1) + (M.sc{i}(2:end-1)-M.s(i))./(M.s(i+1)-M.s(i)).*(U{i+1}(n,1)-U{i}(n,1))))...
+                                                                ); % penalize difference from linear control in this interval
+                    end
                 end
+                %                                ./ (1.0e-5 + sumsqr([U{i}(n,:), U{i+1}(n,1)]))...
+                %regularization = regularization + 1/(problem.max_accel-problem.min_accel)*sumsqr((U{i}(1,2:end) - (U{i}(1,1) + (M.sc{i}(2:end-1)-M.s(i))./(M.s(i+1)-M.s(i)).*(U{i+1}(1,1)-U{i}(1,1))))); % penalize difference from linear control in this interval
+                %regularization = regularization + 2/pi*sumsqr((U{i}(2,2:end) - (U{i}(2,1) + (M.sc{i}(2:end-1)-M.s(i))./(M.s(i+1)-M.s(i)).*(U{i+1}(2,1)-U{i}(2,1))))); % penalize difference from linear control in this interval
                 
                 % add constraint violation cost
                 %viol_cost = viol_cost + sum(sum(V{i}));
@@ -295,6 +311,7 @@ function opti = add_objective(opti, method, problem, M, X, U, V)
             opti.minimize(int_approx ...
                 + method.regularization_weight*regularization ...
                 + method.viol_cost_weight*viol_cost);
+
             %}
             %x = [X{:}];
             %u = [U{:}];

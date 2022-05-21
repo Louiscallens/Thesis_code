@@ -5,24 +5,27 @@ function Mnew = get_new_mesh(res, M, errs, problem, method, save_plots, plot_nam
     [~, rels] = get_error_est(res, M, problem.rhs, method, problem.disconts);
     to_split = [];
     to_increase = [];
+    to_increase_err = [];
     priority_increase = [];
     active_perf_const = [];
+    all_slacks = {};
     for k = 1:Nb_inter
         % check slackness of performance constraints
         slack = [mean(res.Yu{k},2); mean(res.Yx{k}(3:end,:),2)];
+        all_slacks{end+1} = slack;
         active_perf_const = [active_perf_const, slack < method.slack_performance_treshold];
         if min(slack) > method.slack_performance_treshold
             to_split = [to_split, k];
         end
         
         % check slackness of path constraints
-        slack = mean(res.Yx{k}(1:2,:),2);
+        slack = min(res.Yx{k}(1:2,:),[], 2);
         if min(slack) < method.slack_path_treshold
             to_increase = [to_increase, k];
         
         % check accuracy of the system dynamics
         elseif rels(k) > method.err_treshold
-            to_increase = [to_increase, k];
+            to_increase_err = [to_increase_err, k];
         end
         
         % check extremely low accuracy intervals
@@ -54,21 +57,18 @@ function Mnew = get_new_mesh(res, M, errs, problem, method, save_plots, plot_nam
                 [M, Mnew, knew] = increase_polynomial_order(M, Mnew, k, knew, method);
                 increased_u = [increased_u, k];
             else
-                [M, Mnew, knew] = split_interval(M, Mnew, k, knew, 2, method);
+                [M, Mnew, knew] = split_interval(M, Mnew, k, knew, 2, method, all_slacks);
                 splitted = [splitted, k];
             end
             
         % treat those intervals that should increase their number of
         % collocation points
         elseif ismember(k, to_increase)
-            %if M.Nk(k) + method.Nstep <= method.Nmax
-                [M, Mnew, knew] = increase_nb_coll_pts(M, Mnew, k, knew, method, errs(k));
-                increased_x = [increased_x, k];
-            %else
-            %    [M, Mnew, knew] = split_interval(M, Mnew, k, knew, 2, method);
-            %    splitted = [splitted, k];
-            %end
-        
+            [M, Mnew, knew] = increase_nb_coll_pts(M, Mnew, k, knew, method);
+            increased_x = [increased_x, k];
+        elseif ismember(k, to_increase_err)
+            [M, Mnew, knew] = increase_nb_coll_pts(M, Mnew, k, knew, method, errs(k));
+            increased_x = [increased_x, k];
         else
             % copy the interval
             [M, Mnew, knew] = copy_interval(M, Mnew, k, knew, method);
@@ -105,22 +105,53 @@ function [M, Mnew, knew] = increase_polynomial_order(M, Mnew, k, knew, method)
     Mnew.Nu(:,knew) = M.Nu(:,k)+1;
     knew = knew + 1;
 end
-function [M, Mnew, knew] = split_interval(M, Mnew, k, knew, Bk, method)
-    %Bk = max(2, ceil(M.Nk(k)/method.Nmin));
-    ds = (M.s(k+1)-M.s(k))/Bk;
-    %if ds < 2.0
-    %    [M, Mnew, knew] = copy_interval(M, Mnew, k, knew, method);
-    %    return
-    %end
-    for j = 0:Bk-1
-        Mnew.s(knew+j) = M.s(k) + j*ds;
-        Mnew.Nk(knew+j) = method.Nmin;
-        Mnew.Nu(:,knew+j) = M.Nu(:,k);
+function [M, Mnew, knew] = split_interval(M, Mnew, k, knew, Bk, method, all_slacks)
+    if nargin < 7
+        ds = (M.s(k+1)-M.s(k))/Bk;
+        for j = 0:Bk-1
+            Mnew.s(knew+j) = M.s(k) + j*ds;
+            Mnew.Nk(knew+j) = method.Nmin;
+            Mnew.Nu(:,knew+j) = M.Nu(:,k);
+        end
+    else
+        ds = get_optimal_cut(all_slacks, M, k, method);
+        for j = 0:Bk-1
+            Mnew.s(knew+j) = M.s(k) + ds(j+1);
+            Mnew.Nk(knew+j) = method.Nmin;
+            Mnew.Nu(:,knew+j) = M.Nu(:,k);
+        end
     end
     knew = knew + Bk;
 end
+function ds = get_optimal_cut(all_slacks, M, k, method)
+    curr_slacks = all_slacks{k}(1:2);
+    try prev_slacks = all_slacks{k-1}(1:2); catch; prev_slacks = NaN + zeros(size(curr_slacks)); end
+    try next_slacks = all_slacks{k+1}(1:2); catch; next_slacks = NaN + zeros(size(curr_slacks)); end
+    
+    % check if there really is a switch in constraints, otherwise just cut
+    % in the middle
+    if ~(prev_slacks(1) < method.slack_performance_treshold && next_slacks(2) < method.slack_performance_treshold || ...
+            prev_slacks(2) < method.slack_performance_treshold && next_slacks(1) < method.slack_performance_treshold)
+         ds = [0, (M.s(k+1)-M.s(k))/2, M.s(k+1)-M.s(k)];
+         return
+    end
+    
+    if prev_slacks(1) < curr_slacks(1) % lower bound slack is increasing
+        ds = curr_slacks(2)/sum(curr_slacks);
+        ds = [ds, ds + curr_slacks(1)/sum(curr_slacks)];
+    else                               % upper bound slack is increasing
+        ds = curr_slacks(1)/sum(curr_slacks);
+        ds = [ds, ds + curr_slacks(2)/sum(curr_slacks)];
+    end
+    ds = [0, ds];
+    ds = ds.*(M.s(k+1)-M.s(k));
+end
 function [M, Mnew, knew] = increase_nb_coll_pts(M, Mnew, k, knew, method, err)
-    NkNew = M.Nk(k) + ceil(log(err/method.err_treshold)/log(M.Nk(k)));
+    if nargin < 6
+        NkNew = M.Nk(k) + method.Nstep;
+    else
+        NkNew = M.Nk(k) + ceil(log(err/method.err_treshold)/log(M.Nk(k)));
+    end
     if NkNew > method.Nmax
         Bk = max(2, ceil(NkNew/method.Nmin));
         [M, Mnew, knew] = split_interval(M, Mnew, k, knew, Bk, method);
