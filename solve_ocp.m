@@ -25,7 +25,6 @@ function results = solve_ocp(M, problem, problem_switch, method, M_previous, res
     
     opti.solver('ipopt', struct('expand', true), options);
     %opti.callback(@(i) displayTrajectoryX_intermediate(i, M, opti, X, U, Yx, Yu, problem, 50));
-    global regularization
     try
         sol = opti.solve();
     catch
@@ -257,7 +256,6 @@ function opti = add_coll_constraints(opti, problem, method, M, X, U, V)
 	%opti.subject_to(dot_Pi(xvalues, tau(end)) == problem.rhs(X{end}(:,1), uvalues(:,end), tau(end)));
 end
 function opti = add_objective(opti, method, problem, M, X, U, V)
-    global regularization
     switch problem.problem_switch
         otherwise
             int_approx = 0;
@@ -278,9 +276,11 @@ function opti = add_objective(opti, method, problem, M, X, U, V)
                 %regularization = regularization + sumsqr(U{i} - mean(U{i},2)); % penalize difference from mean in this control interval
                 for n = 1:problem.nu
                     if M.Nu(n,i) ~= 0
-                        regularization = regularization + sumsqr(...
-                                (U{i}(n,2:end) - (U{i}(n,1) + (M.sc{i}(2:end-1)-M.s(i))./(M.s(i+1)-M.s(i)).*(U{i+1}(n,1)-U{i}(n,1))))...
-                                                                ); % penalize difference from linear control in this interval
+                        reg = sumsqr(...                % penalize difference from linear control in this interval
+                                (U{i}(n,2:end) - (U{i}(n,1) + (M.sc{i}(2:end-1)-M.s(i))./(M.s(i+1)-M.s(i)).*(U{i+1}(n,1)-U{i}(n,1)))));
+                        reg = reg/(M.s(i+1)-M.s(i));    % scale inversly with interval width
+                        reg = reg/(1.0e1 + (U{i}(n,1)-U{i+1}(n,1))^2);
+                        regularization = regularization + reg;
                     end
                 end
                 %                                ./ (1.0e-5 + sumsqr([U{i}(n,:), U{i+1}(n,1)]))...
