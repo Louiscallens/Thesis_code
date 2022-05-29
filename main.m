@@ -10,9 +10,9 @@ problem_switch = 11;
 problem = setup_problem(problem_switch);
 
 %% specify method parameters
-method.method_select = 0; % 0: slackness-based method - 1: basic hp (patterson)
+method.method_select = 1; % 0: slackness-based method - 1: basic hp (patterson)
 method.N = 40;
-method.maxIter = 4;
+method.maxIter = 7;
 method.Nmin = 5;
 method.Nstep = 4;
 method.Nmax = 12;
@@ -22,16 +22,16 @@ if method.method_select == 0
     %method.slack_path_treshold = 0.5;%1.0e-1;%1.0e-2;
     method.slack_path_treshold = 1.0e-35;%1.0e-1;%1.0e-2;
     %method.err_treshold = 1.0e-1; %1.0e-4;
-    method.err_treshold = 1.0e-5; %1.0e-4;
+    method.err_treshold = 1.0e-3; %1.0e-4;
     method.err_priority_treshold = 1.0;
 else
     method.slack_performance_treshold = 1.0e30; method.slack_path_treshold = -1;
-    method.err_treshold = 1.0e-5; method.err_priority_treshold = 1.0e5;
+    method.err_treshold = 1.0e-3; method.err_priority_treshold = 1.0e5;
 end
 method.minimal_interval_width = 1.0e-2;
 method.use_viol_vars = true || method.method_select;
 method.viol_cost_weight = method.use_viol_vars*1.0e10;
-method.regularization_weight = 1.0e-8;%1.0e-4;
+method.regularization_weight = 1.0e-2;%1.0e-4;
 
 method.use_warm_start = true;
 

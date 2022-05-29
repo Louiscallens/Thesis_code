@@ -280,7 +280,7 @@ function opti = add_objective(opti, method, problem, M, X, U, V)
                     if M.Nu(n,i) ~= 0
                         reg = sumsqr(...                % penalize difference from linear control in this interval
                                 (U{i}(n,2:end) - (U{i}(n,1) + (M.sc{i}(2:end-1)-M.s(i))./(M.s(i+1)-M.s(i)).*(U{i+1}(n,1)-U{i}(n,1)))));
-                        reg = reg/(M.s(i+1)-M.s(i));    % scale inversly with interval width
+                        %reg = reg/(M.s(i+1)-M.s(i));    % scale inversly with interval width
                         reg = reg/(1.0e1 + (U{i}(n,1)-U{i+1}(n,1))^2);
                         regularization = regularization + reg;
                     end

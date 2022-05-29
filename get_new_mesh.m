@@ -85,14 +85,14 @@ function [Mnew, updated] = get_new_mesh(res, M, errs, problem, method, save_plot
             
             curr_active = active_perf_const(:,k);
             if ~(curr_active(1) || curr_active(2)) % first control input is not limited
-                Mnew.Nu(1,knew-1) = min(2, M.Nu(1,k)+1);
-                %disp("incraesing polynomial order of u1");
+                %Mnew.Nu(1,knew-1) = min(2, M.Nu(1,k)+1);
+                Mnew.Nu(1,knew-1) = max(min(1, M.Nu(1,k)+1), M.Nu(1,k));
             end
             try
             if ~(curr_active(3) || curr_active(4)) % second control input is not limited
                 % increase polynomial order of second control input
-                Mnew.Nu(2,knew-1) = min(2, M.Nu(2,k)+1);
-                %disp("incraesing polynomial order of u2");
+                %Mnew.Nu(2,knew-1) = min(2, M.Nu(2,k)+1);
+                Mnew.Nu(2,knew-1) = max(min(1, M.Nu(2,k)+1), M.Nu(2,k));
             end
             catch
             end
@@ -157,7 +157,7 @@ function [M, Mnew, knew] = increase_nb_coll_pts(M, Mnew, k, knew, method, err)
     if nargin < 6
         NkNew = M.Nk(k) + method.Nstep;
     else
-        NkNew = M.Nk(k) + ceil(log(err/method.err_treshold)/log(M.Nk(k)));
+        NkNew = M.Nk(k) + max(method.Nstep, ceil(log(err/method.err_treshold)/log(M.Nk(k))));
     end
     if NkNew > method.Nmax
         Bk = max(2, ceil(NkNew/method.Nmin));
