@@ -10,7 +10,7 @@ problem_switch = 11;
 problem = setup_problem(problem_switch);
 
 %% specify method parameters
-method.method_select = 1; % 0: slackness-based method - 1: basic hp (patterson)
+method.method_select = 0; % 0: slackness-based method - 1: basic hp (patterson)
 method.N = 40;
 method.maxIter = 10;
 method.Nmin = 5;
