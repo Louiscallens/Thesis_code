@@ -81,8 +81,8 @@ function problem = setup_problem(problem_switch)
         case 11 % final problem
             myTrack = final_problem();
             disconts = [myTrack.Ls(1:end-1)];
-            reference_name_full = 'reference_chicane_N_150.mat';
-            reference_name = 'reference_chicane';
+            reference_name_full = 'final_problem_iteration_4.mat';
+            reference_name = 'final_problem_iteration_4';
         %{
         case 6 % no velocity state
             %L1 = 100; L2 = 120; L3 = 160; L4 = 240; % original

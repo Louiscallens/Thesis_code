@@ -130,7 +130,11 @@ classdef final_problem
         function ders = evaluate_angle_derivative(obj, svalues)
             rhos = obj.evaluate_radius_curvature(svalues);
             ders = 1./rhos;
-            ders(ders < 1e-25) = 0;
+            for i = 1:length(ders)
+                if abs(ders(i)) < 1e-25
+                    ders(i) = 0;
+                end
+            end
         end
         
         function test_evaluate_track_param(obj)
@@ -143,7 +147,7 @@ classdef final_problem
         end
         
         function test_evaluate_radius_curvature(obj)
-            svalues = linspace(0, obj.total_length, 100);
+            svalues = linspace(0, obj.total_length, 1000);
             rhos = obj.evaluate_radius_curvature(svalues);
             figure; plot(svalues, rhos);
         end

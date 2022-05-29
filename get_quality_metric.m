@@ -4,12 +4,12 @@ function [metric, specifics] = get_quality_metric(res, M, rhs, problem, method)
 % integral of the difference with the geometric reference solution and
 % the accuracy of the system dynamics
     
-    load(problem.reference_name_full);
-    res_ref = res_previous; M_ref = M_previous;
+    %load(problem.reference_name_full);
+    %res_ref = res_previous; M_ref = M_previous;
     
     % objective function
     obj = res.tf;
-    obj_ref = res_ref.tf;
+    obj_ref = 0;%res_ref.tf;
     %disp("obj  = "+num2str(obj));
     
     % compute geometric difference
