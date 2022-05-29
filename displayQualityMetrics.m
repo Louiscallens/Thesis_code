@@ -9,6 +9,7 @@ function displayQualityMetrics(quality_metrics, save_plots, plot_name, method)
         xlabel('$iteration$', 'interpreter', 'latex');
         ylabel(ylabels{i}, 'interpreter', 'latex');
         xticks(1:size(quality_metrics,2));
+        if size(quality_metrics,2) > 1; xlim([1,size(quality_metrics,2)]); end
         grid on;
         %if i == 1
         %    plot(quality_metrics(end,:), '-r', 'linewidth', 1);

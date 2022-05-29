@@ -109,7 +109,7 @@ end
 function [M, Mnew, knew] = increase_polynomial_order(M, Mnew, k, knew, method)
     Mnew.Nk(knew) = M.Nk(k);
 	Mnew.s(knew) = M.s(k);
-    Mnew.Nu(:,knew) = M.Nu(:,k)+1;
+    Mnew.Nu(:,knew) = min(1,M.Nu(:,k)+1);
     knew = knew + 1;
 end
 function [M, Mnew, knew] = split_interval(M, Mnew, k, knew, Bk, method, all_slacks)

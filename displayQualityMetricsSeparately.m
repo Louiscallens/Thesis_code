@@ -8,6 +8,7 @@ function displayQualityMetricsSeparately(quality_metrics, save_plots, plot_name,
         xlabel('$iteration$', 'interpreter', 'latex');
         ylabel(ylabels{i}, 'interpreter', 'latex');
         xticks(1:size(quality_metrics,2));
+        if size(quality_metrics,2) > 1; xlim([1,size(quality_metrics,2)]); end
         grid on;
         if save_plots
             saveas(gca, plot_name+"_quality_metrics_"+metric(i)+".eps", 'epsc');

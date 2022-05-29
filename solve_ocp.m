@@ -1,4 +1,4 @@
-function results = solve_ocp(M, problem, problem_switch, method, M_previous, res_previous)
+function [results, timing, nbIter] = solve_ocp(M, problem, problem_switch, method, M_previous, res_previous)
     opti = casadi.Opti();
         
     [X, U, Yx, Yu, U_comp, V] = create_opti_variables(opti, problem, M);
@@ -25,11 +25,14 @@ function results = solve_ocp(M, problem, problem_switch, method, M_previous, res
     
     opti.solver('ipopt', struct('expand', true), options);
     %opti.callback(@(i) displayTrajectoryX_intermediate(i, M, opti, X, U, Yx, Yu, problem, 50, method));
+    tic;
     try
         sol = opti.solve();
     catch
         sol = opti.debug();
     end
+    timing = toc;
+    nbIter = sol.stats.iter_count;
     %figure; spy(sol.value(jacobian(opti.f, opti.x)));
     
     results = construct_result(sol, X, U, Yx, Yu, M, problem);

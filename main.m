@@ -12,7 +12,7 @@ problem = setup_problem(problem_switch);
 %% specify method parameters
 method.method_select = 0; % 0: slackness-based method - 1: basic hp (patterson)
 method.N = 40;
-method.maxIter = 10;
+method.maxIter = 7;
 method.Nmin = 5;
 method.Nstep = 4;
 method.Nmax = 12;
@@ -36,11 +36,12 @@ method.regularization_weight = 1.0e-2;%1.0e-4;
 method.use_warm_start = true;
 
 method.save_plots = false;
-method.plot_name = "figs/thesis/accuracy/accuracy_iteration_2";
+method.save_every_iteration = false;
+method.plot_name = "figs/thesis/final_problem/slack_piecewise/iteration_";
 method.og_plot_name = method.plot_name;
-method.skip_plot_position = method.save_plots;
-method.plot_metrics_separately = method.save_plots;
-if method.save_plots
+method.skip_plot_position = method.save_plots || method.save_every_iteration;
+method.plot_metrics_separately = method.save_plots || method.save_every_iteration;
+if method.save_plots || method.save_every_iteration
     set(groot,'defaultAxesFontSize',14);
 end
 
@@ -88,11 +89,15 @@ else
     res_previous = struct('X', {{NaN + zeros(problem.nx,0)}}, 'U', {{NaN + zeros(problem.nu,0)}});
     M_previous = M;
 end
+timings = [];
+iterCounts = [];
 
 % do the loop
 while ~converged && iterCount <= method.maxIter
     % solve ocp
-    res = solve_ocp(M, problem, problem_switch, method, M_previous, res_previous);
+    [res, timing, iter_count] = solve_ocp(M, problem, problem_switch, method, M_previous, res_previous);
+    timings(iterCount) = timing;
+    iterCounts(iterCount) = iter_count;
     
     % store some intermediate results
     usedMeshes{end+1} = M;
@@ -100,12 +105,15 @@ while ~converged && iterCount <= method.maxIter
     qualityMetrics(:,iterCount) = specifics;
     
     % do some plotting
-    displayTrajectoryX(res, M, problem, method.save_plots && iterCount == method.maxIter, method.plot_name, method);
-    displayTrajectoryU(res, M, problem, method.save_plots && iterCount == method.maxIter, method.plot_name, method);
+    if method.save_every_iteration
+        method.plot_name = method.og_plot_name + num2str(iterCount);
+    end
+    displayTrajectoryX(res, M, problem, method.save_plots && iterCount == method.maxIter || method.save_every_iteration, method.plot_name, method);
+    displayTrajectoryU(res, M, problem, method.save_plots && iterCount == method.maxIter || method.save_every_iteration, method.plot_name, method);
     if method.plot_metrics_separately || problem_switch == 7 || problem_switch == 8 || problem_switch == 9
-        displayQualityMetricsSeparately(qualityMetrics, method.save_plots && iterCount == method.maxIter, method.plot_name, method)
+        displayQualityMetricsSeparately(qualityMetrics, method.save_plots && iterCount == method.maxIter || method.save_every_iteration, method.plot_name, method)
     else
-        displayQualityMetrics(qualityMetrics, method.save_plots && iterCount == method.maxIter, method.plot_name, method)
+        displayQualityMetrics(qualityMetrics, method.save_plots && iterCount == method.maxIter || method.save_every_iteration, method.plot_name, method)
     end
     % check for convergence
     if iterCount == method.maxIter
