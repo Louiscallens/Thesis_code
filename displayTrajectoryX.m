@@ -1,4 +1,4 @@
-function displayTrajectoryX(res, M, problem, save_plots, plot_name)
+function displayTrajectoryX(res, M, problem, save_plots, plot_name, method)
     svalues = [];
     tvalues = [];
     for k = 1:length(res.tc)
@@ -29,7 +29,7 @@ function displayTrajectoryX(res, M, problem, save_plots, plot_name)
         uvalues(2,:) = zeros(size(uvalues(1,:)));
     end
     
-    f = figure(1); clf; f.Position = [25.0000  464.2000  500.0000  300.0000];
+    f = figure(1); clf; if ~method.skip_plot_position; f.Position = [25.0000  464.2000  500.0000  300.0000]; end
     ylabels = {'$e(t)$', '$\psi(t)$', 'v(t)'};
     for i = 1:problem.nx
         subplot(problem.nx, 1, i);
@@ -58,7 +58,7 @@ function displayTrajectoryX(res, M, problem, save_plots, plot_name)
     end
     
     y = [res.X{:}];
-    f = figure(2); clf; f.Position = [1041,4.698e+02,500,3e+02];
+    f = figure(2); clf; if ~method.skip_plot_position; f.Position = [1041,4.698e+02,500,3e+02]; end
     fine_svalues = linspace(0, M.s(end), 1000);
     fine_angles = problem.myTrack.evaluate_angle(fine_svalues);
     angles = problem.myTrack.evaluate_angle(svalues);

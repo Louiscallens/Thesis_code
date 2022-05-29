@@ -1,6 +1,7 @@
-function Mnew = get_new_mesh(res, M, errs, problem, method, save_plots, plot_name)
+function [Mnew, updated] = get_new_mesh(res, M, errs, problem, method, save_plots, plot_name)
 % define a new mesh based on specific rules to decide when to increase the
 % order of the polynomial or when to split an interval    
+    updated = false;
     Nb_inter = length(M.s)-1;
     [~, rels] = get_error_est(res, M, problem.rhs, method, problem.disconts);
     to_split = [];
@@ -45,20 +46,24 @@ function Mnew = get_new_mesh(res, M, errs, problem, method, save_plots, plot_nam
             %if M.Nk(k) + method.Nstep <= method.Nmax
                 [M, Mnew, knew] = increase_nb_coll_pts(M, Mnew, k, knew, method, errs(k));
                 increased_x = [increased_x, k];
+                updated = true;
             %else
             %    [M, Mnew, knew] = split_interval(M, Mnew, k, knew, 2, method);
             %    splitted = [splitted, k];
+            %    updated = true;
             %end
             
         % split intervals where no constraint is active
-        elseif ismember(k, to_split)
+        elseif ismember(k, to_split) && M.s(k+1)-M.s(k) > method.minimal_interval_width
             if M.Nu(k) < 1 && (k ==1 || ismember(k-1, to_split)) && (k == Nb_inter || ismember(k+1, to_split)) % does not exceed linear controls
             %if M.Nu(k) <= 1 && (k ==1 || ismember(k-1, to_split)) && (k == Nb_inter || ismember(k+1, to_split))
                 [M, Mnew, knew] = increase_polynomial_order(M, Mnew, k, knew, method);
                 increased_u = [increased_u, k];
+                updated = true;
             else
                 [M, Mnew, knew] = split_interval(M, Mnew, k, knew, 2, method, all_slacks);
                 splitted = [splitted, k];
+                updated = true;
             end
             
         % treat those intervals that should increase their number of
@@ -66,9 +71,11 @@ function Mnew = get_new_mesh(res, M, errs, problem, method, save_plots, plot_nam
         elseif ismember(k, to_increase)
             [M, Mnew, knew] = increase_nb_coll_pts(M, Mnew, k, knew, method);
             increased_x = [increased_x, k];
+            updated = true;
         elseif ismember(k, to_increase_err)
             [M, Mnew, knew] = increase_nb_coll_pts(M, Mnew, k, knew, method, errs(k));
             increased_x = [increased_x, k];
+            updated = true;
         else
             % copy the interval
             [M, Mnew, knew] = copy_interval(M, Mnew, k, knew, method);
@@ -96,7 +103,7 @@ function Mnew = get_new_mesh(res, M, errs, problem, method, save_plots, plot_nam
     Mnew.s = [Mnew.s, M.s(end)];
     Mnew.sc = Mnew.add_collocation_times();
     
-    displayMeshUpdate(M, splitted, increased_u, increased_x);
+    displayMeshUpdate(M, splitted, increased_u, increased_x, method);
 end
 
 function [M, Mnew, knew] = increase_polynomial_order(M, Mnew, k, knew, method)

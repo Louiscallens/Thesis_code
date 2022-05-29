@@ -19,8 +19,8 @@ function [error_est, rel] = get_coll_error_est(scoll, xcoll, ucoll, rhs, discont
             Xs(j,i) = LagrangePolynomialEval(scoll, xcoll(j,:), s_hat(i));
         end
         for j = 1:nu
-            Us(j,i) = LagrangePolynomialEval(scoll(1:end), ucoll(j,:), s_hat(i)); %polynomial interpolation
-            %Us(j,i) = interp1(scoll(1:size(ucoll(j,:),2)), ucoll(j,:), s_hat(i)); %linear interpolation
+            %Us(j,i) = LagrangePolynomialEval(scoll(1:end), ucoll(j,:), s_hat(i)); %polynomial interpolation
+            Us(j,i) = interp1(scoll(1:size(ucoll(j,:),2)), ucoll(j,:), s_hat(i)); %linear interpolation
         end
     end
     

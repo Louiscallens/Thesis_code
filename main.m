@@ -1,31 +1,34 @@
 import casadi.*
 set(groot, 'defaultAxesTickLabelInterpreter','latex'); set(groot, 'defaultLegendInterpreter','latex');
+set(groot,'defaultAxesFontSize','factory');
 
 %% set up the problem
 % 0: chicane - 1: smooth sine - 2: hairpin - 3: generic - 4: smooth hairpin - 5: circle - 6: zoomed chicane - 7: straight line
-% 8: corner-cutting track - 9: smooth controls necessity
-problem_switch = 0;
+% 8: corner-cutting track - 9: smooth controls necessity - 10: masking - 11: spa
+% effect
+problem_switch = 11;
 problem = setup_problem(problem_switch);
 
 %% specify method parameters
 method.method_select = 0; % 0: slackness-based method - 1: basic hp (patterson)
-method.N = 15;
-method.maxIter = 5;
-method.Nmin = 3;
+method.N = 40;
+method.maxIter = 4;
+method.Nmin = 5;
 method.Nstep = 4;
-method.Nmax = 8;
+method.Nmax = 12;
 method.minUDegree = 0 + 2*method.method_select; %0: piecewise constant - 1: piecewise linear - 2: polynomial (control value for every collocation point)
 if method.method_select == 0
     method.slack_performance_treshold = 1.0e-2;%1.0e-2;
     %method.slack_path_treshold = 0.5;%1.0e-1;%1.0e-2;
-    method.slack_path_treshold = 1.0e-2;%1.0e-1;%1.0e-2;
+    method.slack_path_treshold = 1.0e-35;%1.0e-1;%1.0e-2;
     %method.err_treshold = 1.0e-1; %1.0e-4;
-    method.err_treshold = 1.0e-4; %1.0e-4;
+    method.err_treshold = 1.0e-5; %1.0e-4;
     method.err_priority_treshold = 1.0;
 else
     method.slack_performance_treshold = 1.0e30; method.slack_path_treshold = -1;
-    method.err_treshold = 1.0e-4; method.err_priority_treshold = 1.0e5;
+    method.err_treshold = 1.0e-5; method.err_priority_treshold = 1.0e5;
 end
+method.minimal_interval_width = 1.0e-2;
 method.use_viol_vars = true || method.method_select;
 method.viol_cost_weight = method.use_viol_vars*1.0e10;
 method.regularization_weight = 1.0e-8;%1.0e-4;
@@ -33,8 +36,13 @@ method.regularization_weight = 1.0e-8;%1.0e-4;
 method.use_warm_start = true;
 
 method.save_plots = false;
-method.plot_name = "figs/thesis/corner-cutting/corner-cutting_iteration_1";
+method.plot_name = "figs/thesis/accuracy/accuracy_iteration_2";
 method.og_plot_name = method.plot_name;
+method.skip_plot_position = method.save_plots;
+method.plot_metrics_separately = method.save_plots;
+if method.save_plots
+    set(groot,'defaultAxesFontSize',14);
+end
 
 method.load_reference = false || (problem_switch == 6);
 method.save_result = false;
@@ -43,6 +51,8 @@ method.save_result = false;
 
 % initialize mesh
 M = mesh(method.N, problem.myTrack.total_length, method.Nmin, method.minUDegree, problem.nu, problem.disconts);
+%M = maskingMesh2(method.N, problem.myTrack.total_length, method.Nmin, method.minUDegree, problem.nu, problem.disconts);
+%if problem_switch == 10; M = maskingMesh(method.N, problem.myTrack.total_length, method.Nmin, method.minUDegree, problem.nu, problem.disconts); end
 %load('mesh_chicane_trouble.mat');
 %load('mesh_chicane_oscillations.mat');
 usedMeshes = {};
@@ -52,6 +62,7 @@ converged = false;
 iterCount = 1;
 qualityMetrics = [];
 if method.load_reference
+    %{
     if problem_switch == 6
         load(problem.reference_name_full);
         res_ref = res_previous;
@@ -70,8 +81,9 @@ if method.load_reference
         res.U{problem.N_end+1-problem.N_first}  = res_ref.U{problem.N_end};
         res_previous = res;
     else
+    %}
         load(problem.reference_name_full);
-    end
+    %end
 else
     res_previous = struct('X', {{NaN + zeros(problem.nx,0)}}, 'U', {{NaN + zeros(problem.nu,0)}});
     M_previous = M;
@@ -88,12 +100,12 @@ while ~converged && iterCount <= method.maxIter
     qualityMetrics(:,iterCount) = specifics;
     
     % do some plotting
-    displayTrajectoryX(res, M, problem, method.save_plots && iterCount == method.maxIter, method.plot_name);
-    displayTrajectoryU(res, M, problem, method.save_plots && iterCount == method.maxIter, method.plot_name);
-    if problem_switch == 7 || problem_switch == 8 || problem_switch == 9
-        displayQualityMetrics7(qualityMetrics, method.save_plots && iterCount == method.maxIter, method.plot_name)
+    displayTrajectoryX(res, M, problem, method.save_plots && iterCount == method.maxIter, method.plot_name, method);
+    displayTrajectoryU(res, M, problem, method.save_plots && iterCount == method.maxIter, method.plot_name, method);
+    if method.plot_metrics_separately || problem_switch == 7 || problem_switch == 8 || problem_switch == 9
+        displayQualityMetricsSeparately(qualityMetrics, method.save_plots && iterCount == method.maxIter, method.plot_name, method)
     else
-        displayQualityMetrics(qualityMetrics, method.save_plots && iterCount == method.maxIter, method.plot_name)
+        displayQualityMetrics(qualityMetrics, method.save_plots && iterCount == method.maxIter, method.plot_name, method)
     end
     % check for convergence
     if iterCount == method.maxIter
@@ -106,7 +118,17 @@ while ~converged && iterCount <= method.maxIter
         res_previous = res;
     end
     [~, errs] = get_error_est(res, M, problem.rhs, method, problem.disconts);
-    M = get_new_mesh(res, M, errs, problem, method);
+    [M, updated] = get_new_mesh(res, M, errs, problem, method);
+    if ~updated
+        displayTrajectoryX(res, M, problem, method.save_plots, method.plot_name, method);
+        displayTrajectoryU(res, M, problem, method.save_plots, method.plot_name, method);
+        if method.plot_metrics_separately || problem_switch == 7 || problem_switch == 8 || problem_switch == 9
+            displayQualityMetricsSeparately(qualityMetrics, method.save_plots, method.plot_name, method)
+        else
+            displayQualityMetrics(qualityMetrics, method.save_plots, method.plot_name, method)
+        end
+        break;
+    end
     drawnow();
     iterCount = iterCount + 1;
     disp("-------- STARTING ITERATION "+num2str(iterCount)+" --------");
@@ -119,9 +141,13 @@ end
 
 
 % list of figures:
-% 1. all states
-% 2. trajectory
-% 3. inputs
-% 4. quality metrics (end)
-% 5. relative errors
-% 6. mesh updates
+% 1.  all states
+% 2.  trajectory
+% 3.  inputs
+% 4.  quality metrics (end)
+% 5.  relative errors
+% 6.  mesh updates
+% 7.  final time
+% 8.  nb vars
+% 9.  accuracy
+% 10. feasibility

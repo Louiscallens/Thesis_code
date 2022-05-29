@@ -13,8 +13,8 @@ function [metric, specifics] = get_quality_metric(res, M, rhs, problem, method)
     %disp("obj  = "+num2str(obj));
     
     % compute geometric difference
-    geom_diff = get_geometric_diff(res, M, res_ref, M_ref, problem);
-    %geom_diff = 0;
+    %geom_diff = get_geometric_diff(res, M, res_ref, M_ref, problem);
+    geom_diff = 0;
     %disp("geom = "+num2str(geom_diff));
     
     % accuracy of system dynamics

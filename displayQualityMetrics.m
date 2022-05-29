@@ -1,5 +1,5 @@
-function displayQualityMetrics(quality_metrics, save_plots, plot_name)
-    f = figure(4); clf; f.Position = [1.02e+03,1.034e+02,500,300];
+function displayQualityMetrics(quality_metrics, save_plots, plot_name, method)
+    f = figure(4); clf; if ~method.skip_plot_position; f.Position = [1.02e+03,1.034e+02,500,300]; end
     
     ylabels = {'$t_f$', '$\# variables$', '$log_{10}(\epsilon_{max})$', '$feasability$', '$geometric$ $difference$'};
     quality_metrics(3,:) = log10(quality_metrics(3,:));

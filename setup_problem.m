@@ -70,6 +70,19 @@ function problem = setup_problem(problem_switch)
             reference_name_full = 'reference_chicane_N_150.mat';
             reference_name = 'reference_chicane';
             disconts = [];
+        case 10 % masking effect
+            %L1 = 50; L2 = L1+20; L3 = L2+10; % single left turn
+            %params.L1 = L1; params.L2 = L2; params.L3 = L3; 
+            %myTrack = singleTurn(params);
+            myTrack = hairpin(struct('L1', 100, 'R', 20, 'L2', 50));
+            reference_name_full = 'reference_chicane_N_150.mat';
+            reference_name = 'reference_chicane';
+            disconts = [myTrack.s1, myTrack.s2];
+        case 11 % final problem
+            myTrack = final_problem();
+            disconts = [myTrack.Ls(1:end-1)];
+            reference_name_full = 'reference_chicane_N_150.mat';
+            reference_name = 'reference_chicane';
         %{
         case 6 % no velocity state
             %L1 = 100; L2 = 120; L3 = 160; L4 = 240; % original
@@ -113,17 +126,19 @@ function problem = setup_problem(problem_switch)
     rhs = @(x, u, t) [x(3,:).*sin(x(2,:))./get_s_derivative(myTrack, x, t);
                       x(3,:).*tan(u(2,:))./get_s_derivative(myTrack, x, t) - myTrack.evaluate_angle_derivative(t);
                       u(1,:)./get_s_derivative(myTrack, x, t)];
+    %problem = struct('t0', 0, 'nx', 3, 'nu', 2, 'x0', [0;0;50], 'rhs', rhs);
     problem = struct('t0', 0, 'nx', 3, 'nu', 2, 'x0', [0;0;50], 'rhs', rhs);
     problem.myTrack = myTrack;
     problem.disconts = disconts;
     problem.xf = [0, NaN, NaN, NaN];
     problem.tf = myTrack.total_length;
-    problem.b = @(s) 4;
+    problem.b = @(s) 3;
     problem.max_accel = 20; problem.min_accel = -5;
     %problem.roll_off = @(x) exp(-100.*x.^2);
     %problem.roll_off = @(x) exp(-10.*x.^2);
-    problem.roll_off = @(x) exp(-10.*x.^2).^4;
-    problem.max_v = 75;
+    %problem.roll_off = @(x) exp(-10.*x.^2).^4;
+    problem.roll_off = @(x) 1./(1+65.*x.^2);
+    problem.max_v = 50;
     problem.scale = problem.myTrack.total_length;
     problem.problem_switch = problem_switch;
     problem.reference_name = reference_name;
@@ -150,5 +165,9 @@ function problem = setup_problem(problem_switch)
     elseif problem_switch == 9
         problem.max_v = 20;
         problem.b = @(s) 4;
+    elseif problem_switch == 10
+        %problem.max_v = 70;
+        %problem.x0 = [0; 0; 10];
+        problem.roll_off = @(x) 1./(1+100.*x.^2);
     end
 end

@@ -1,10 +1,10 @@
-function displayMeshUpdate(M, splitted, increased_u, increased_x)
+function displayMeshUpdate(M, splitted, increased_u, increased_x, method)
     split_color = 'b';
     increase_u_color = 'm';
     increase_x_color = 'r';
     nothing_color = 'g';
 
-    f = figure(6); clf; f.Position = [545.0000   71.4000  500.0000  300.0000]; hold on;
+    f = figure(6); clf; if ~method.skip_plot_position; f.Position = [545.0000   71.4000  500.0000  300.0000]; end; hold on;
     plot(-10,-10, split_color); plot(-10,-10, increase_u_color); 
     plot(-10,-10, increase_x_color); plot(-10,-10, nothing_color);
     legend('$split$', '$increase$ $u$', '$increase$ $nb$ $coll$', '$nothing$',...

@@ -24,7 +24,7 @@ function results = solve_ocp(M, problem, problem_switch, method, M_previous, res
     %options = struct('nlp_scaling_method','none','linear_solver', 'ma86', 'min_refinement_steps',5,'max_refinement_steps', 100);
     
     opti.solver('ipopt', struct('expand', true), options);
-    %opti.callback(@(i) displayTrajectoryX_intermediate(i, M, opti, X, U, Yx, Yu, problem, 50));
+    %opti.callback(@(i) displayTrajectoryX_intermediate(i, M, opti, X, U, Yx, Yu, problem, 50, method));
     try
         sol = opti.solve();
     catch
@@ -77,7 +77,7 @@ function [X, U, Yx, Yu, U_comp, V] = create_opti_variables(opti, problem, M)
 end
 function opti = add_initial_final_constraints(opti, problem, X)
     switch problem.problem_switch
-        case {0, 1, 2, 3, 4, 5, 8, 9}
+        case {0, 1, 2, 3, 4, 5, 8, 9, 10}
             opti.subject_to(X{1}(1:2,1) == problem.x0(1:2));
             opti.subject_to(X{1}(3,1) <= problem.x0(3));
             %opti.subject_to(X{end}(1) == problem.xf(1));
@@ -89,6 +89,8 @@ function opti = add_initial_final_constraints(opti, problem, X)
             opti.subject_to(X{end}(1:2,1) == problem.xf(1:2));
             opti.subject_to(X{1}(3,1) <= problem.x0(3));
             opti.subject_to(X{end}(3,1) <= problem.xf(3));
+        case 11
+            opti.subject_to(X{1}(:,1) == X{end}(:,end));
         otherwise
             opti.subject_to(X{1}(:,1) == problem.x0);
             opti.subject_to(X{end}(:,1) == problem.xf);
@@ -96,7 +98,7 @@ function opti = add_initial_final_constraints(opti, problem, X)
 end
 function [opti, Yx, Yu] = add_path_constraints(opti, problem, method, M, X, U, Yx, Yu, V)
     switch problem.problem_switch
-        case {0, 1, 2, 3, 4, 5, 6, 8, 9}
+        case {0, 1, 2, 3, 4, 5, 6, 8, 9, 10, 11}
             % loop over all intervals
             for k = 1:length(M.s)-1
                 get_states = @(s) LagrangePolynomialEval(M.sc{k}, [X{k}, X{k}(:,1)], s);
@@ -321,7 +323,7 @@ function opti = add_objective(opti, method, problem, M, X, U, V)
 end
 function opti = add_initial_initial_guess(opti, M, X, U_comp, problem)
     switch problem.problem_switch
-        case {0, 1, 2, 3, 4, 5, 6, 8, 9}
+        case {0, 1, 2, 3, 4, 5, 6, 8, 9, 10, 11}
             initial_velocity = 2;
             x = [X{:}];
             opti.set_initial(x(1,:), 0);

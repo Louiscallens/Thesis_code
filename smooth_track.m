@@ -9,7 +9,7 @@ classdef smooth_track
     methods
         function obj = smooth_track(problem)
             obj.total_length = 100;
-            obj.a = 10;
+            obj.a = 7;
             obj.b = 0.1;
         end
         

@@ -1,4 +1,4 @@
-function displayTrajectoryX_intermediate(iter, M, opti, X, U, Yx, Yu, problem, step)
+function displayTrajectoryX_intermediate(iter, M, opti, X, U, Yx, Yu, problem, step, method)
     if mod(iter, step) ~= 0
         return
     end
@@ -19,8 +19,8 @@ function displayTrajectoryX_intermediate(iter, M, opti, X, U, Yx, Yu, problem, s
     
     save_plots = false;
     plot_name = "";
-    displayTrajectoryX(curr_res, M, problem, save_plots, plot_name);
-    displayTrajectoryU(curr_res, M, problem, save_plots, plot_name);
+    displayTrajectoryX(curr_res, M, problem, save_plots, plot_name, method);
+    displayTrajectoryU(curr_res, M, problem, save_plots, plot_name, method);
     
     %pause();
 end
