@@ -11,8 +11,8 @@ problem = setup_problem(problem_switch);
 
 %% specify method parameters
 method.method_select = 0; % 0: slackness-based method - 1: basic hp (patterson)
-method.N = 40;
-method.maxIter = 7;
+method.N = 500;
+method.maxIter = 10;
 method.Nmin = 5;
 method.Nstep = 4;
 method.Nmax = 12;
@@ -22,13 +22,15 @@ if method.method_select == 0
     %method.slack_path_treshold = 0.5;%1.0e-1;%1.0e-2;
     method.slack_path_treshold = 1.0e-35;%1.0e-1;%1.0e-2;
     %method.err_treshold = 1.0e-1; %1.0e-4;
-    method.err_treshold = 10^(-2.5); %1.0e-4;
+    method.err_treshold = 10^(-5); %1.0e-4;
     method.err_priority_treshold = 1.0;
+    method.err_order_magnitude_treshold = 2;
 else
     method.slack_performance_treshold = 1.0e30; method.slack_path_treshold = -1;
-    method.err_treshold = 10^(-2.5); method.err_priority_treshold = 1.0e5;
+    method.err_treshold = 10^(-5); method.err_priority_treshold = 1.0e5;
+    method.err_order_magnitude_treshold = inf;
 end
-method.minimal_interval_width = 1.0e-2;
+method.minimal_interval_width = 1.0e-0;
 method.use_viol_vars = true || method.method_select;
 method.viol_cost_weight = method.use_viol_vars*1.0e10;
 method.regularization_weight = 1.0e-2;%1.0e-4;
@@ -37,7 +39,7 @@ method.use_warm_start = true;
 
 method.save_plots = false;
 method.save_every_iteration = false;
-method.plot_name = "figs/thesis/final_problem/slack_piecewise/iteration_";
+method.plot_name = "figs/thesis/final_problem/reference/reference";
 method.og_plot_name = method.plot_name;
 method.skip_plot_position = method.save_plots || method.save_every_iteration;
 method.plot_metrics_separately = method.save_plots || method.save_every_iteration;

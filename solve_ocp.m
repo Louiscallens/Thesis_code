@@ -30,6 +30,7 @@ function [results, timing, nbIter] = solve_ocp(M, problem, problem_switch, metho
         sol = opti.solve();
     catch
         sol = opti.debug();
+        pause();
     end
     timing = toc;
     nbIter = sol.stats.iter_count;

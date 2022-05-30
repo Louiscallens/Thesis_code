@@ -30,7 +30,8 @@ function [Mnew, updated] = get_new_mesh(res, M, errs, problem, method, save_plot
         end
         
         % check extremely low accuracy intervals
-        if rels(k) > method.err_priority_treshold
+        mean_err = get_weighted_mean(rels, M);
+        if rels(k) > method.err_priority_treshold || (rels(k) > method.err_treshold && log10(rels(k)) > mean_err + method.err_order_magnitude_treshold)
             priority_increase = [priority_increase, k];
         end
     end
@@ -55,7 +56,7 @@ function [Mnew, updated] = get_new_mesh(res, M, errs, problem, method, save_plot
             
         % split intervals where no constraint is active
         elseif ismember(k, to_split) && M.s(k+1)-M.s(k) > method.minimal_interval_width
-            if M.Nu(k) < 1 && (k ==1 || ismember(k-1, to_split)) && (k == Nb_inter || ismember(k+1, to_split)) % does not exceed linear controls
+            if min(M.Nu(:,k)) < 1 && (k ==1 || ismember(k-1, to_split)) && (k == Nb_inter || ismember(k+1, to_split)) % does not exceed linear controls
             %if M.Nu(k) <= 1 && (k ==1 || ismember(k-1, to_split)) && (k == Nb_inter || ismember(k+1, to_split))
                 [M, Mnew, knew] = increase_polynomial_order(M, Mnew, k, knew, method);
                 increased_u = [increased_u, k];
@@ -82,19 +83,20 @@ function [Mnew, updated] = get_new_mesh(res, M, errs, problem, method, save_plot
             
             % prevent masking effect ! knew is alreay updated, so we use
             % the old value !
-            
-            curr_active = active_perf_const(:,k);
-            if ~(curr_active(1) || curr_active(2)) % first control input is not limited
-                %Mnew.Nu(1,knew-1) = min(2, M.Nu(1,k)+1);
-                Mnew.Nu(1,knew-1) = max(min(1, M.Nu(1,k)+1), M.Nu(1,k));
-            end
-            try
-            if ~(curr_active(3) || curr_active(4)) % second control input is not limited
-                % increase polynomial order of second control input
-                %Mnew.Nu(2,knew-1) = min(2, M.Nu(2,k)+1);
-                Mnew.Nu(2,knew-1) = max(min(1, M.Nu(2,k)+1), M.Nu(2,k));
-            end
-            catch
+            if method.method_select == 0
+                curr_active = active_perf_const(:,k);
+                if ~(curr_active(1) || curr_active(2)) % first control input is not limited
+                    %Mnew.Nu(1,knew-1) = min(2, M.Nu(1,k)+1);
+                    Mnew.Nu(1,knew-1) = max(min(1, M.Nu(1,k)+1), M.Nu(1,k));
+                end
+                try
+                if ~(curr_active(3) || curr_active(4)) % second control input is not limited
+                    % increase polynomial order of second control input
+                    %Mnew.Nu(2,knew-1) = min(2, M.Nu(2,k)+1);
+                    Mnew.Nu(2,knew-1) = max(min(1, M.Nu(2,k)+1), M.Nu(2,k));
+                end
+                catch
+                end
             end
             %}
         end
@@ -106,6 +108,14 @@ function [Mnew, updated] = get_new_mesh(res, M, errs, problem, method, save_plot
     displayMeshUpdate(M, splitted, increased_u, increased_x, method);
 end
 
+function mean_rels = get_weighted_mean(rels, M)
+    % returns average order of magnitude of the errors
+    sum = 0;
+    for k = 1:length(rels)
+        sum = sum + log10(rels(k))*(M.s(k+1)-M.s(k));
+    end
+    mean_rels = sum/(M.s(end)-M.s(1));
+end
 function [M, Mnew, knew] = increase_polynomial_order(M, Mnew, k, knew, method)
     Mnew.Nk(knew) = M.Nk(k);
 	Mnew.s(knew) = M.s(k);
@@ -117,14 +127,14 @@ function [M, Mnew, knew] = split_interval(M, Mnew, k, knew, Bk, method, all_slac
         ds = (M.s(k+1)-M.s(k))/Bk;
         for j = 0:Bk-1
             Mnew.s(knew+j) = M.s(k) + j*ds;
-            Mnew.Nk(knew+j) = method.Nmin;
+            Mnew.Nk(knew+j) = max(method.Nmin, ceil(M.Nk(k)/Bk));
             Mnew.Nu(:,knew+j) = M.Nu(:,k);
         end
     else
         ds = get_optimal_cut(all_slacks, M, k, method);
         for j = 0:Bk-1
             Mnew.s(knew+j) = M.s(k) + ds(j+1);
-            Mnew.Nk(knew+j) = method.Nmin;
+            Mnew.Nk(knew+j) = max(method.Nmin, ceil(M.Nk(k)/Bk));
             Mnew.Nu(:,knew+j) = M.Nu(:,k);
         end
     end

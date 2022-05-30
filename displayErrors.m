@@ -6,8 +6,11 @@ function displayErrors(errors, M, err_treshold, priority_treshold, save_plots, p
         evalues = [evalues, errors(k), errors(k)];
     end
 
+    s_marks = 100:100:M.s(end);
+    
     f = figure(5); clf; if ~method.skip_plot_position; f.Position = [15.4000   82.6000  500.0000  300.0000]; end
     semilogy(svalues, evalues, '-b', 'linewidth', 1); hold on;
+    xline(s_marks, '-', 'color', [0.8, 0.8, 0.8], 'linewidth', 1); hold on;
     semilogy((M.s(2:end)+M.s(1:end-1))./2, errors, '.b', 'linewidth', 1);
     xlabel('$s$', 'interpreter', 'latex');
     ylabel('$\epsilon_{rel}$', 'interpreter', 'latex');

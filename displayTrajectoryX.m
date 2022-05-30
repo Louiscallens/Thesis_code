@@ -29,10 +29,18 @@ function displayTrajectoryX(res, M, problem, save_plots, plot_name, method)
         uvalues(2,:) = zeros(size(uvalues(1,:)));
     end
     
+    s_marks = 100:100:M.s(end);
+    t_marks = NaN + zeros(size(s_marks));
+    for i = 1:length(s_marks)
+        t_marks(i) = integral(@(time) 1./get_s_derivative(problem.myTrack, interp1(svalues, [res.X{:}]', time)', time), 0, s_marks(i), 'arrayvalued', 1);
+    end
+    
     f = figure(1); clf; if ~method.skip_plot_position; f.Position = [25.0000  464.2000  500.0000  300.0000]; end
     ylabels = {'$e(t)$', '$\psi(t)$', 'v(t)'};
+    
     for i = 1:problem.nx
         subplot(problem.nx, 1, i);
+        xline(t_marks, '-', 'color', [0.8, 0.8, 0.8], 'linewidth', 1); hold on;
         plot(tvalues, xvalues(i,:), '.-', 'linewidth', 1); hold on;
         plot(res.t, xvaluesfirst(i,:), '.k', 'linewidth', 1);
         xline(res.t, ':', 'color', [0.5, 0.5, 0.5]);
@@ -74,6 +82,14 @@ function displayTrajectoryX(res, M, problem, save_plots, plot_name, method)
     [Xs1, Ys1] = problem.myTrack.evaluate_track_param(M.s);
     plot(Xs1 - y1(1,:).*sin(angles1), Ys1 + y1(1,:).*cos(angles1), '.k', 'linewidth', 1);
     axis equal;
+    
+    angle_marks = problem.myTrack.evaluate_angle(s_marks);
+    [Xs_marks, Ys_marks] = problem.myTrack.evaluate_track_param(s_marks);
+    for i = 1:length(s_marks)
+        plot([Xs_marks(i)+problem.b(s_marks(i))*sin(angle_marks(i)), Xs_marks(i)-problem.b(s_marks(i))*sin(angle_marks(i))], ...
+             [Ys_marks(i)-problem.b(s_marks(i))*cos(angle_marks(i)), Ys_marks(i)+problem.b(s_marks(i))*cos(angle_marks(i))], 'color', [0.8, 0.8, 0.8], 'linewidth', 1);
+    end
+    plot([0,0], [-problem.b(0), problem.b(0)], 'k', 'linewidth', 1);
     
     if save_plots
         %saveas(gca, "figs/case_studies/"+plot_name+"_trajX.eps", 'epsc');

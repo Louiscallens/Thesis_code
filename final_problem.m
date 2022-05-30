@@ -11,9 +11,9 @@ classdef final_problem
     
     methods
         function obj = final_problem()
-            obj.R =    [1e30, 20,    15, 1e30,   5, 1e30,   5, 1e30, 60, 1e30,  18, 1e30];
-            L =        [100,  NaN,  NaN,   50, NaN,    5, NaN,   107.87, NaN,   5.75, NaN, 30];
-            rotation = [NaN,  250, -250,  NaN,  90,  NaN,  90,  NaN,  60,  NaN, 120, NaN];
+            obj.R =    [1e30, 20,   1e30,  16, 1e30,   5, 1e30,   5,   1e30, 60,    1e30,  18, 1e30];
+            L =        [100,  NaN,  1,    NaN,   50, NaN,    5, NaN, 107.87, NaN,   6.2, NaN, 31.5];
+            rotation = [NaN,  250,  NaN, -250,  NaN,  90,  NaN,  90,    NaN,  60,    NaN, 120, NaN];
             obj.a_init = 0;
             %obj.R =    [1e30, 5,  1e30, 300, 1e30,  10,  10, 1e30,   10, 1e30,   10, 1e30,  15, 1e30,   20, 1e30,   40, 1e30,   10,  20, 1e30,   15, 1e30,   20, 1e30, 50,  10,  10, 1e30];
             %L =        [20,   NaN,  30, NaN,  100, NaN, NaN,   10,  NaN,   20,  NaN,   10, NaN,   30,  NaN,   10,  NaN,   30,  NaN, NaN,   20,  NaN,   15,  NaN,   78, NaN, NaN, NaN, 5];

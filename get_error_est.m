@@ -14,7 +14,7 @@ function [err, rels] = get_error_est(res, M, rhs, method, disconts)
         [errors(k), rels(k)] = get_coll_error_est(M.sc{k}, [X{k}, X{k+1}(:,1)], uvals, rhs, disconts);
     end
     
-    displayErrors(rels, M, method.err_treshold, method.err_priority_treshold, method.save_plots, method.plot_name, method);
+    displayErrors(rels, M, method.err_treshold, method.err_priority_treshold, method.save_plots || method.save_every_iteration, method.plot_name, method);
     
     err = max(rels);
 end
