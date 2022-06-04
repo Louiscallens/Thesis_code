@@ -10,9 +10,24 @@ problem_switch = 11;
 problem = setup_problem(problem_switch);
 
 %% specify method parameters
-method.method_select = 1; % 0: slackness-based method - 1: basic hp (patterson)
-method.N = 40;
-method.maxIter = 10;
+N_values = [100, 200, 300, 400, 500, 600];
+exp_timings_total = [];
+exp_timings_comp  = [];
+exp_timings_build = [];
+exp_iterCounts = [];
+exp_tfs = [];
+exp_nb_vars = [];
+
+clear;
+load('workspaces/thesis/final_problem3/reference_N_experiment/end_of_experiment');
+nn_init = length(N_values);
+N_values = [N_values, 1300, 1400, 1500];
+
+for nn = nn_init+1:length(N_values)
+    
+method.method_select = 0; % 0: slackness-based method - 1: basic hp (patterson)
+method.N = N_values(nn);
+method.maxIter = 1;
 method.Nmin = 5;
 method.Nstep = 4;
 method.Nmax = 12;
@@ -37,13 +52,13 @@ method.regularization_weight = 0*1.0e-2;%1.0e-4;
 
 method.use_warm_start = true;
 
-method.save_plots = false;
+method.save_plots = true;
 method.save_every_iteration = false;
 method.plot_iterations = [];
-method.plot_name = "E:/1. Unief/thesis/thesis_latex/figs/final_problem3/reference/N_600";
+method.plot_name = "E:/1. Unief/thesis/thesis_latex/figs/final_problem3/reference_N_experiment/N_"+num2str(method.N);
 method.og_plot_name = method.plot_name;
 method.save_workspace = method.save_plots || method.save_every_iteration || ~isempty(method.plot_iterations);
-method.workspace_name = "workspaces/thesis/final_problem3/reference/N_600";
+method.workspace_name = "workspaces/thesis/final_problem3/reference_N_experiment/N_"+num2str(method.N);
 method.og_workspace_name = method.workspace_name;
 method.skip_plot_position = method.save_plots || method.save_every_iteration || ~isempty(method.plot_iterations);
 method.plot_metrics_separately = method.save_plots || method.save_every_iteration || ~isempty(method.plot_iterations);
@@ -98,81 +113,18 @@ end
 timings = [];
 iterCounts = [];
 
-%clear;
-%load('workspaces/thesis/final_problem3/high_accuracy_hp/iteration_5');
-
-% do the loop
-while ~converged && iterCount <= method.maxIter
-    % solve ocp
-    [res, timing, iter_count, exit_code] = solve_ocp(M, problem, problem_switch, method, M_previous, res_previous);
-    timings(iterCount) = timing;
-    iterCounts(iterCount) = iter_count;
-    if exit_code ~= 0
-        break;
-    end
-    
-    % store some intermediate results
-    usedMeshes{end+1} = M;
-    [~, specifics] = get_quality_metric(res, M, problem.rhs, problem, method);
-    qualityMetrics(:,iterCount) = specifics;
-    
-    % do some plotting
-    if method.save_every_iteration || ~isempty(method.plot_iterations)
-        method.plot_name = method.og_plot_name + num2str(iterCount);
-    end
-    displayTrajectoryX(res, M, problem, method.save_plots && iterCount == method.maxIter || method.save_every_iteration || ismember(iterCount, method.plot_iterations), method.plot_name, method);
-    displayTrajectoryU(res, M, problem, method.save_plots && iterCount == method.maxIter || method.save_every_iteration || ismember(iterCount, method.plot_iterations), method.plot_name, method);
-    if method.plot_metrics_separately || problem_switch == 7 || problem_switch == 8 || problem_switch == 9
-        displayQualityMetricsSeparately(qualityMetrics, method.save_plots && iterCount == method.maxIter || method.save_every_iteration || ismember(iterCount, method.plot_iterations), method.plot_name, method)
-    else
-        displayQualityMetrics(qualityMetrics, method.save_plots && iterCount == method.maxIter || method.save_every_iteration || ismember(iterCount, method.plot_iterations), method.plot_name, method)
-    end
-    [~, errs] = get_error_est(res, M, problem.rhs, method, problem.disconts);
-    
-    method.workspace_name = method.og_workspace_name + num2str(iterCount);
-    save(method.workspace_name);
-    
-    % check for convergence
-    if iterCount == method.maxIter
-        break;
-    end
-    
-    % update the mesh
-    if method.use_warm_start
-        M_previous = M;
-        res_previous = res;
-    end
-    [M, updated] = get_new_mesh(res, M, errs, problem, method);
-    if ~updated
-        displayTrajectoryX(res, M, problem, method.save_plots, method.plot_name, method);
-        displayTrajectoryU(res, M, problem, method.save_plots, method.plot_name, method);
-        if method.plot_metrics_separately || problem_switch == 7 || problem_switch == 8 || problem_switch == 9
-            displayQualityMetricsSeparately(qualityMetrics, method.save_plots, method.plot_name, method)
-        else
-            displayQualityMetrics(qualityMetrics, method.save_plots, method.plot_name, method)
-        end
-        break;
-    end
-    drawnow();
-    iterCount = iterCount + 1;
-    disp("-------- STARTING ITERATION "+num2str(iterCount)+" --------");
-end
-
-if method.save_result
-    res_previous = res; M_previous = M;
-    save(problem.reference_name+"_N_"+num2str(N)+".mat", 'res_previous', 'M_previous');
-end
+t1 = tic;
+[res, timing, iter_count, exit_code] = solve_ocp(M, problem, problem_switch, method, M_previous, res_previous);
+a = toc(t1);
+exp_timings_total(nn) = a;
+exp_timings_comp(nn) = timing;
+exp_timings_build(nn) = a - timing;
+exp_iterCounts(nn) = iter_count;
+exp_tfs(nn) = res.tf;
+exp_nb_vars(nn) = count_nb_vars(M, problem);
 
 save(method.og_plot_name+"meta_data");
 
-% list of figures:
-% 1.  all states
-% 2.  trajectory
-% 3.  inputs
-% 4.  quality metrics (end)
-% 5.  relative errors
-% 6.  mesh updates
-% 7.  final time
-% 8.  nb vars
-% 9.  accuracy
-% 10. feasibility
+end
+
+save('workspaces/thesis/final_problem3/reference_N_experiment/end_of_experiment');

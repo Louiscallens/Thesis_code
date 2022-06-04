@@ -66,7 +66,7 @@ function problem = setup_problem(problem_switch)
         case 9 % smooth controls needed at times
             L1 = 0; L2 = 20; L3 = 20; L4 = 20; % single left turn
             params.L1 = L1; params.L2 = L2; params.L3 = L3; params.L4 = L4; 
-            myTrack = chicane(params);
+            myTrack = chicane2(params);
             reference_name_full = 'reference_chicane_N_150.mat';
             reference_name = 'reference_chicane';
             disconts = [];
@@ -127,7 +127,7 @@ function problem = setup_problem(problem_switch)
                       x(3,:).*tan(u(2,:))./get_s_derivative(myTrack, x, t) - myTrack.evaluate_angle_derivative(t);
                       u(1,:)./get_s_derivative(myTrack, x, t)];
     %problem = struct('t0', 0, 'nx', 3, 'nu', 2, 'x0', [0;0;50], 'rhs', rhs);
-    problem = struct('t0', 0, 'nx', 3, 'nu', 2, 'x0', [0;0;50], 'rhs', rhs);
+    problem = struct('t0', 0, 'nx', 3, 'nu', 2, 'x0', [0;0;21.5], 'rhs', rhs);
     problem.myTrack = myTrack;
     problem.disconts = disconts;
     problem.xf = [0, NaN, NaN, NaN];

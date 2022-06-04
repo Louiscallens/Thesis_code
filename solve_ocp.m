@@ -1,4 +1,4 @@
-function [results, timing, nbIter] = solve_ocp(M, problem, problem_switch, method, M_previous, res_previous)
+function [results, timing, nbIter, exit_code] = solve_ocp(M, problem, problem_switch, method, M_previous, res_previous)
     opti = casadi.Opti();
         
     [X, U, Yx, Yu, U_comp, V] = create_opti_variables(opti, problem, M);
@@ -28,13 +28,14 @@ function [results, timing, nbIter] = solve_ocp(M, problem, problem_switch, metho
     tic;
     try
         sol = opti.solve();
+        exit_code = 0;
     catch
         sol = opti.debug();
-        pause();
+        exit_code = 1;
     end
     timing = toc;
     nbIter = sol.stats.iter_count;
-    %figure; spy(sol.value(jacobian(opti.f, opti.x)));
+    %figure(14); spy(sol.value(jacobian(opti.g, opti.x)));
     
     results = construct_result(sol, X, U, Yx, Yu, M, problem);
 end
@@ -46,14 +47,22 @@ function [X, U, Yx, Yu, U_comp, V] = create_opti_variables(opti, problem, M)
     Yx = {};
     for i = 1:Nb_inter
         X{i} = opti.variable(problem.nx, M.Nk(i));
-        V{i} = opti.variable(problem.nx + 2, M.Nk(i));
+        V{i} = opti.variable(problem.nx+2, M.Nk(i));
         %Yx{i} = opti.variable(problem.nx*2, M.Nk(i));
         Yx{i} = casadi.MX.zeros(problem.nx*2, M.Nk(i));
     end
     X{Nb_inter+1} = opti.variable(problem.nx, 1);
-    V{Nb_inter+1} = opti.variable(problem.nx + 2, 1);
+    V{Nb_inter+1} = opti.variable(problem.nx+2, 1);
     %Yx{Nb_inter+1} = opti.variable(problem.nx*2, 1);
     Yx{Nb_inter+1} = casadi.MX.zeros(problem.nx*2, 1);
+    
+    %{
+    V = {};
+    for i = 1:Nb_inter
+        V{i} = opti.variable(2, M.Nk(i));
+    end
+    V{Nb_inter+1} = opti.variable(2, 1);
+    %}
     
     U = cell(problem.nu, 0);
     Yu = {};
@@ -105,7 +114,7 @@ function [opti, Yx, Yu] = add_path_constraints(opti, problem, method, M, X, U, Y
         case {0, 1, 2, 3, 4, 5, 6, 8, 9, 10, 11}
             % loop over all intervals
             for k = 1:length(M.s)-1
-                get_states = @(s) LagrangePolynomialEval(M.sc{k}, [X{k}, X{k}(:,1)], s);
+                get_states = @(s) LagrangePolynomialEval(M.sc{k}, [X{k}, X{k+1}(:,1)], s);
                 get_inputs = @(s) linInterpol(M.sc{k}, [U{k}, U{k+1}(:,1)], s);
                 
                 % apply constraints to collocation points
@@ -137,16 +146,18 @@ function [opti, Yx, Yu] = add_path_constraints(opti, problem, method, M, X, U, Y
                 
                 % apply constraints to linearly spaced points in the
                 % interval
-                Nb_extra_constraint_pts = 0;
+                Nb_extra_constraint_pts = 10*method.method_select;
                 svalues = linspace(M.s(k), M.s(k+1), 2+Nb_extra_constraint_pts);
                 for j = 2:length(svalues)-1
                     x = get_states(svalues(j));
                     u = get_inputs(svalues(j));
-                    opti.subject_to(problem.min_accel.*problem.roll_off(u(2)) <= u(1) <= problem.max_accel.*problem.roll_off(u(2)));
-                    opti.subject_to(-pi/4 <= u(2) <= pi/4);
-                    opti.subject_to(-problem.b(svalues(j)) <= x(1) <= problem.b(svalues{k}(j)));
-                    opti.subject_to(-pi/2 <= x(2) <= pi/2);
-                    opti.subject_to(0 <= x(3) <= problem.max_v.*problem.roll_off(u(2)));
+                    %viol_idx = get_viol_idx(M.sc{k}, svalues(j));
+                    %opti.subject_to(problem.min_accel.*problem.roll_off(u(2)) <= u(1) <= problem.max_accel.*problem.roll_off(u(2)));
+                    %opti.subject_to(-pi/4 <= u(2) <= pi/4);
+                    %opti.subject_to(-problem.b(svalues(j)) <= x(1) <= problem.b(svalues(j)));
+                    %opti.subject_to(-pi/2 <= x(2) <= pi/2);
+                    opti.subject_to(2 <= x(3) <= problem.max_v.*problem.roll_off(u(2)));
+                    %opti.subject_to(2 <= x(3) <= problem.max_v.*problem.roll_off(u(2)) + V{k}(2,viol_idx).^2);
                 end
             end
             if method.use_viol_vars
@@ -267,8 +278,8 @@ function opti = add_objective(opti, method, problem, M, X, U, V)
             int_approx = 0;
             regularization = 0;
             viol_cost = 0;
-            %counter = 0;
             for i = 1:length(M.s)-1
+                
                 % add time information
                 I = get_integration_matrix(M.sc{i});
                 int_vals = NaN + casadi.MX.zeros(size(M.sc{i}));
@@ -277,8 +288,9 @@ function opti = add_objective(opti, method, problem, M, X, U, V)
                     int_vals(j) = 1/get_s_derivative(problem.myTrack, xvals(:,j), M.sc{i}(j));
                 end
                 int_approx = int_approx + transpose(I(end,:)*int_vals');
+                %}
                 
-                % add regulirization
+                % add regularization
                 %regularization = regularization + sumsqr(U{i} - mean(U{i},2)); % penalize difference from mean in this control interval
                 for n = 1:problem.nu
                     if M.Nu(n,i) ~= 0
@@ -289,12 +301,8 @@ function opti = add_objective(opti, method, problem, M, X, U, V)
                         regularization = regularization + reg;
                     end
                 end
-                %                                ./ (1.0e-5 + sumsqr([U{i}(n,:), U{i+1}(n,1)]))...
-                %regularization = regularization + 1/(problem.max_accel-problem.min_accel)*sumsqr((U{i}(1,2:end) - (U{i}(1,1) + (M.sc{i}(2:end-1)-M.s(i))./(M.s(i+1)-M.s(i)).*(U{i+1}(1,1)-U{i}(1,1))))); % penalize difference from linear control in this interval
-                %regularization = regularization + 2/pi*sumsqr((U{i}(2,2:end) - (U{i}(2,1) + (M.sc{i}(2:end-1)-M.s(i))./(M.s(i+1)-M.s(i)).*(U{i+1}(2,1)-U{i}(2,1))))); % penalize difference from linear control in this interval
-                
+
                 % add constraint violation cost
-                %viol_cost = viol_cost + sum(sum(V{i}));
                 viol_cost = viol_cost + sumsqr(V{i});
                 
                 %}
@@ -304,13 +312,11 @@ function opti = add_objective(opti, method, problem, M, X, U, V)
                     b = 1/get_s_derivative(problem.myTrack, X{i}(:,j+1), M.sc{i}(j+1));
                     width = M.sc{i}(j+1)-M.sc{i}(j);
                     int_approx = int_approx + (a+b)/2*width;
-                    %counter = counter + 1;
                 end
                 a = 1/get_s_derivative(problem.myTrack, X{i}(:,end), M.sc{i}(end-1));
                 b = 1/get_s_derivative(problem.myTrack, X{i+1}(:,1), M.sc{i}(end));
                 width = M.sc{i}(end)-M.sc{i}(end-1);
                 int_approx = int_approx + (a+b)/2*width;
-                %counter = counter + 1;
                 %}
             end
             %disp(counter);
@@ -399,4 +405,8 @@ function opti = add_initial_guess(opti, res_previous, M_previous, M, X, U_comp, 
     %res = struct('X', {Xinit}, 'U', {Uinit}, 'Yx', {Yxinit}, 'Yu', {Yuinit}, ...
     %    'tc', {tc}, 't', t, 'tf', t(end));
     %displayTrajectoryX(res, M, problem, false, "");
+end
+
+function idx = get_viol_idx(sc, s)
+    [~, idx] = min(abs(sc-s));
 end

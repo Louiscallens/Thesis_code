@@ -6,7 +6,7 @@ function result = init_intervals_discontinuities(disconts, N, total_length)
     
     % if there is a left-over interval, add it to the part where the
     % intervals are largest
-    while sum(nbs) < N-1
+    while sum(nbs) < N
         widths = lengths./nbs;
         [~, idx] = max(widths);
         nbs(idx) = nbs(idx) + 1;

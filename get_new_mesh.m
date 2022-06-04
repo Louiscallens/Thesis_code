@@ -83,7 +83,7 @@ function [Mnew, updated] = get_new_mesh(res, M, errs, problem, method, save_plot
             
             % prevent masking effect ! knew is alreay updated, so we use
             % the old value !
-            if method.method_select == 0
+            if false && method.method_select == 0
                 curr_active = active_perf_const(:,k);
                 if ~(curr_active(1) || curr_active(2)) % first control input is not limited
                     %Mnew.Nu(1,knew-1) = min(2, M.Nu(1,k)+1);

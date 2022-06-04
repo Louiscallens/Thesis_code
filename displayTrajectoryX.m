@@ -1,25 +1,21 @@
 function displayTrajectoryX(res, M, problem, save_plots, plot_name, method)
     svalues = [];
     tvalues = [];
+    tfine = [];
     for k = 1:length(res.tc)
-        %if k == 1
-        %   tvalues = [tvalues, linspace(res.tc{k}(1), res.tc{k+1}(1), 100)];
-        %else
-           tvalues = [tvalues, res.tc{k}(1:end-1)]; 
-        %end
+        tfine = [tfine, linspace(res.tc{k}(1), res.tc{k}(end), 100)];
+        tvalues = [tvalues, res.tc{k}(1:end-1)]; 
         svalues = [svalues, M.sc{k}(1:end-1)];
     end
     tvalues = [tvalues, res.t(end)];
     svalues = [svalues, M.s(end)];
     
+    xfine = [];
     xvalues = [];
     xvaluesfirst = [];
     for k = 1:length(res.X)
-        %if k == 1
-        %   xvalues = [xvalues, LagrangePolynomialEval(res.tc{k}, [res.X{k}, res.X{k+1}(:,1)], linspace(res.tc{k}(1), res.tc{k+1}(1), 100))];
-        %else
-           xvalues = [xvalues, res.X{k}]; 
-        %end
+        if k < length(res.X); xfine = [xfine, LagrangePolynomialEval(res.tc{k}, [res.X{k}, res.X{k+1}(:,1)], linspace(res.tc{k}(1), res.tc{k}(end), 100))]; end
+        xvalues = [xvalues, res.X{k}]; 
         xvaluesfirst = [xvaluesfirst, res.X{k}(:,1)];
     end
     
@@ -28,6 +24,8 @@ function displayTrajectoryX(res, M, problem, save_plots, plot_name, method)
         uVars(2,:) = zeros(size(uVars(1,:)));
         uvalues(2,:) = zeros(size(uvalues(1,:)));
     end
+    
+    ufine = interp1(tvalues_u, uvalues(2,:), tfine);
     
     s_marks = 100:100:M.s(end);
     t_marks = NaN + zeros(size(s_marks));
@@ -40,10 +38,11 @@ function displayTrajectoryX(res, M, problem, save_plots, plot_name, method)
     
     for i = 1:problem.nx
         subplot(problem.nx, 1, i);
-        xline(t_marks, '-', 'color', [0.8, 0.8, 0.8], 'linewidth', 1); hold on;
+        try xline(t_marks, '-', 'color', [0.8, 0.8, 0.8], 'linewidth', 1); catch; end; hold on;
         plot(tvalues, xvalues(i,:), '.-', 'linewidth', 1); hold on;
+        %plot(tfine, xfine(i,:), '-b', 'linewidth', 1); hold on; plot(tvalues, xvalues(i,:), '.b', 'linewidth', 1);
         plot(res.t, xvaluesfirst(i,:), '.k', 'linewidth', 1);
-        xline(res.t, ':', 'color', [0.5, 0.5, 0.5]);
+        %xline(res.t, ':', 'color', [0.5, 0.5, 0.5]);
         xlabel('$t$', 'interpreter', 'latex');
         ylabel(ylabels{i}, 'interpreter', 'latex');
         xlim([res.t(1), res.t(end)]);
@@ -52,7 +51,7 @@ function displayTrajectoryX(res, M, problem, save_plots, plot_name, method)
             plot(tvalues, -problem.b(tvalues), '-r', 'linewidth', 1);
         elseif i == 3
             plot(tVars, problem.max_v.*problem.roll_off(uVars(2,:)), '.-r', 'linewidth', 1);
-            %plot(tvalues_u, problem.max_v.*problem.roll_off(uvalues(2,:)), '-r', 'linewidth', 1);
+            %plot(tfine, problem.max_v.*problem.roll_off(ufine), '-r', 'linewidth', 1); hold on; plot(tVars, problem.max_v.*problem.roll_off(uVars(2,:)), '.r', 'linewidth', 1);
         end
     end
     
@@ -64,6 +63,25 @@ function displayTrajectoryX(res, M, problem, save_plots, plot_name, method)
         saveas(gca, plot_name+"_all_states.fig", 'fig');
         saveas(gca, plot_name+"_all_states.png", 'png');
     end
+    %{
+    xlim([0.15, 0.9]);
+    %ylim([47.7, 49.7]);
+    ylim([47.7, 50.1]);
+    if save_plots
+        saveas(gca, plot_name+"_all_states_zoom1.eps", 'epsc');
+        saveas(gca, plot_name+"_all_states_zoom1.fig", 'fig');
+        saveas(gca, plot_name+"_all_states_zoom1.png", 'png');
+    end
+    
+    xlim([2.4, 3.8]); 
+    %ylim([48.5706, 48.5716]);
+    ylim([48.57115, 48.57135]);
+    if save_plots
+        saveas(gca, plot_name+"_all_states_zoom2.eps", 'epsc');
+        saveas(gca, plot_name+"_all_states_zoom2.fig", 'fig');
+        saveas(gca, plot_name+"_all_states_zoom2.png", 'png');
+    end
+    %}
     
     y = [res.X{:}];
     f = figure(2); clf; if ~method.skip_plot_position; f.Position = [1041,4.698e+02,500,3e+02]; end

@@ -24,8 +24,8 @@ function displayTrajectoryU(res, M, problem, save_plots, plot_name, method)
     %plot(tvalues, problem.min_accel.*problem.roll_off(uvalues(2,:)), '-r', 'linewidth', 1);
     %plot(tvalues, uvalues(1,:), 'b', 'linewidth', 1); hold on;
     plot(tVars, uVars(1,:), '.-b', 'linewidth', 1);
-    xline(t_marks, '-', 'color', [0.8, 0.8, 0.8], 'linewidth', 1);
-    xline(res.t, ':', 'color', [0.5, 0.5, 0.5]);
+    try xline(t_marks, '-', 'color', [0.8, 0.8, 0.8], 'linewidth', 1); catch; end
+    %xline(res.t, ':', 'color', [0.5, 0.5, 0.5]);
     xlim([res.t(1), res.t(end)]);
     yline(0, 'color', [0.7, 0.7, 0.7]);
     ylim([problem.min_accel-2, problem.max_accel+2]);
@@ -35,8 +35,8 @@ function displayTrajectoryU(res, M, problem, save_plots, plot_name, method)
     subplot(212);
     %plot(tvalues, uvalues(2,:), 'b', 'linewidth', 1); hold on;
     plot(tVars, uVars(2,:), '.-b', 'linewidth', 1);
-    xline(t_marks, '-', 'color', [0.8, 0.8, 0.8], 'linewidth', 1);
-    xline(res.t, ':', 'color', [0.5, 0.5, 0.5]);
+    try xline(t_marks, '-', 'color', [0.8, 0.8, 0.8], 'linewidth', 1); catch; end
+    %xline(res.t, ':', 'color', [0.5, 0.5, 0.5]);
     xlim([res.t(1), res.t(end)]);
     yline(0, 'color', [0.7, 0.7, 0.7]);
     xlabel('$t$', 'interpreter', 'latex');

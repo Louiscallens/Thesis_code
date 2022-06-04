@@ -35,7 +35,8 @@ function Unew = new_mesh_evaluateU(U, M, Mnew, problem_switch)
                     elseif M.Nu(n,k) == 1
                         Uvalues(j) = linInterpol([M.s(k), M.s(k+1)], [U{k}(n,1), U{k+1}(n,end)], Mnew.sc{i}(j));
                     else
-                        Uvalues(j) = linInterpol(M.sc{k}, [U{k}(n,:), U{k+1}(n,1)], Mnew.sc{i}(j));
+                        %Uvalues(j) = linInterpol(M.sc{k}, [U{k}(n,:), U{k+1}(n,1)], Mnew.sc{i}(j));
+                        Uvalues(j) = interp1(M.sc{k}, [U{k}(n,:), U{k+1}(n,1)], Mnew.sc{i}(j));
                         %Uvalues(j) = linInterpol(M.sc{k}(1:end-1), U{k}(n,:), Mnew.sc{i}(j));
                     end
                 end
