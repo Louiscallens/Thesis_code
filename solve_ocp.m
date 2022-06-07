@@ -303,7 +303,9 @@ function opti = add_objective(opti, method, problem, M, X, U, V)
                 end
 
                 % add constraint violation cost
-                viol_cost = viol_cost + sumsqr(V{i});
+                if method.use_viol_vars
+                    viol_cost = viol_cost + sumsqr(V{i});
+                end
                 
                 %}
                 %{
